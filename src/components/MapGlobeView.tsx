@@ -151,19 +151,14 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
           );
         }
 
-        // Add clustered GeoJSON source
+        // Add stations GeoJSON source (unclustered for Radio Garden starry dot aesthetics)
         map.addSource('stations-source', {
           type: 'geojson',
           data: buildGeoJson(cities),
-          cluster: true,
-          clusterRadius: 50,
-          clusterMaxZoom: 14,
-          clusterProperties: {
-            total_stations: ['+', ['get', 'stationCount']],
-          },
+          cluster: false,
         });
 
-        // Add dedicated source for selected city pulsing indicator
+        // Add dedicated source for selected city targeting reticle & pulse
         map.addSource('selected-city-source', {
           type: 'geojson',
           data: {
@@ -183,33 +178,73 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
           },
         });
 
-        // 1. CLUSTER: Outer radiant glow
+        // 1. SELECTED CITY: Ambient green pulse behind the active city
         map.addLayer({
-          id: 'clusters-glow',
+          id: 'selected-city-pulse',
           type: 'circle',
-          source: 'stations-source',
-          filter: ['has', 'point_count'],
+          source: 'selected-city-source',
           paint: {
-            'circle-color': '#16C683',
-            'circle-radius': [
-              'step',
-              ['coalesce', ['get', 'total_stations'], ['get', 'point_count']],
-              22,
-              10, 26,
-              50, 32,
-              100, 38,
-            ],
-            'circle-blur': 0.55,
-            'circle-opacity': 0.45,
+            'circle-color': '#2FE29C',
+            'circle-radius': 22,
+            'circle-blur': 0.75,
+            'circle-opacity': 0.55,
           },
         });
 
-        // 2. CLUSTER: Mint green base circle with high-contrast border
+        // 2. SELECTED CITY: Iconic Radio Garden white reticle ring
         map.addLayer({
-          id: 'clusters-circle',
+          id: 'selected-city-reticle',
+          type: 'circle',
+          source: 'selected-city-source',
+          paint: {
+            'circle-color': 'rgba(0, 0, 0, 0)',
+            'circle-radius': 16,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-opacity': 0.95,
+          },
+        });
+
+        // 3. CITY DOTS GLOW: Soft emerald aura scaled by station density
+        map.addLayer({
+          id: 'city-dots-glow',
           type: 'circle',
           source: 'stations-source',
-          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#16C683',
+            'circle-blur': 0.55,
+            'circle-opacity': 0.45,
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              1.5,
+              [
+                'step',
+                ['get', 'stationCount'],
+                3,       // 1 station: soft aura
+                2, 4.8,  // 2-5 stations: medium aura
+                6, 7,    // 6-19 stations: larger aura
+                20, 9.5  // 20+ stations: broad aura
+              ],
+              7,
+              [
+                'step',
+                ['get', 'stationCount'],
+                4.5,
+                2, 7.5,
+                6, 11,
+                20, 15
+              ]
+            ],
+          },
+        });
+
+        // 4. CITY DOTS: Radio Garden style dots (small for 1 station, larger for multiple, largest for major hubs)
+        map.addLayer({
+          id: 'city-dots',
+          type: 'circle',
+          source: 'stations-source',
           paint: {
             'circle-color': [
               'case',
@@ -218,128 +253,62 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
               '#16C683',
             ],
             'circle-radius': [
-              'step',
-              ['coalesce', ['get', 'total_stations'], ['get', 'point_count']],
-              14,
-              10, 18,
-              50, 24,
-              100, 30,
-            ],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-opacity': 0.9,
-          },
-        });
-
-        // 3. CLUSTER: Station count text inside circle
-        map.addLayer({
-          id: 'clusters-count',
-          type: 'symbol',
-          source: 'stations-source',
-          filter: ['has', 'point_count'],
-          layout: {
-            'text-field': ['to-string', ['coalesce', ['get', 'total_stations'], ['get', 'point_count']]],
-            'text-font': ['Open Sans Bold', 'Montserrat Medium', 'Arial Unicode MS Bold'],
-            'text-size': [
-              'step',
-              ['coalesce', ['get', 'total_stations'], ['get', 'point_count']],
-              11,
-              50, 12,
-              100, 13,
-            ],
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-          },
-          paint: {
-            'text-color': '#0B0E14',
-          },
-        });
-
-        // 4. UNCLUSTERED: Selected city halo pulse
-        map.addLayer({
-          id: 'selected-city-pulse',
-          type: 'circle',
-          source: 'selected-city-source',
-          paint: {
-            'circle-color': '#2FE29C',
-            'circle-radius': 24,
-            'circle-blur': 0.6,
-            'circle-opacity': 0.7,
-          },
-        });
-
-        // 5. UNCLUSTERED: Outer soft glow
-        map.addLayer({
-          id: 'unclustered-glow',
-          type: 'circle',
-          source: 'stations-source',
-          filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': '#16C683',
-            'circle-radius': 16,
-            'circle-blur': 0.5,
-            'circle-opacity': 0.35,
-          },
-        });
-
-        // 6. UNCLUSTERED: Station / City circle
-        map.addLayer({
-          id: 'unclustered-circle',
-          type: 'circle',
-          source: 'stations-source',
-          filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': '#16C683',
-            'circle-radius': [
               'interpolate',
               ['linear'],
-              ['get', 'stationCount'],
-              1, 9,
-              5, 12,
-              20, 15,
+              ['zoom'],
+              1.5,
+              [
+                'step',
+                ['get', 'stationCount'],
+                1.9,    // 1 station: compact point
+                2, 3.4, // 2-5 stations: noticeable dot
+                6, 4.9, // 6-19 stations: prominent dot
+                20, 7   // 20+ stations: large metropolitan hub
+              ],
+              7,
+              [
+                'step',
+                ['get', 'stationCount'],
+                2.8,
+                2, 5.2,
+                6, 7.5,
+                20, 11
+              ]
             ],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-opacity': 0.9,
+            'circle-stroke-width': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              1.5,
+              0.6
+            ],
+            'circle-stroke-color': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              '#FFFFFF',
+              'rgba(255, 255, 255, 0.45)'
+            ],
           },
         });
 
-        // 7. UNCLUSTERED: Station count inside circle (if multiple stations in city)
+        // 5. CITY LABELS: Clean minimal typography for multi-station cities when zoomed in
         map.addLayer({
-          id: 'unclustered-count',
+          id: 'city-labels',
           type: 'symbol',
           source: 'stations-source',
-          filter: ['all', ['!', ['has', 'point_count']], ['>', ['get', 'stationCount'], 1]],
-          layout: {
-            'text-field': ['to-string', ['get', 'stationCount']],
-            'text-font': ['Open Sans Bold', 'Montserrat Medium', 'Arial Unicode MS Bold'],
-            'text-size': 9,
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-          },
-          paint: {
-            'text-color': '#0B0E14',
-          },
-        });
-
-        // 8. UNCLUSTERED: Clean city name label
-        map.addLayer({
-          id: 'unclustered-label',
-          type: 'symbol',
-          source: 'stations-source',
-          filter: ['!', ['has', 'point_count']],
+          minzoom: 4.8,
+          filter: ['>', ['get', 'stationCount'], 1],
           layout: {
             'text-field': ['get', 'cityName'],
             'text-font': ['Open Sans Regular', 'Montserrat Regular', 'Arial Unicode MS Regular'],
-            'text-size': 11,
-            'text-offset': [0, 1.4],
+            'text-size': 10,
+            'text-offset': [0, 1.2],
             'text-anchor': 'top',
             'text-optional': true,
           },
           paint: {
             'text-color': '#E6EDF3',
             'text-halo-color': '#0B0E14',
-            'text-halo-width': 2,
+            'text-halo-width': 1.8,
           },
         });
 
@@ -347,48 +316,10 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         handleCameraUpdate();
       });
 
-      // Cluster Click: Smooth zoom towards cluster center
-      map.on('click', 'clusters-circle', async (e: MapLayerMouseEvent) => {
+      // Click on any city dot -> select city, open drawer with station list, start playback
+      map.on('click', 'city-dots', (e: MapLayerMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, {
-          layers: ['clusters-circle'],
-        });
-        if (!features.length) return;
-
-        const clusterId = features[0].properties?.cluster_id;
-        const coordinates = (features[0].geometry as GeoJSON.Point).coordinates as [number, number];
-        const source = map.getSource('stations-source') as GeoJSONSource | undefined;
-
-        if (source && typeof clusterId === 'number') {
-          try {
-            const zoom = await source.getClusterExpansionZoom(clusterId);
-            map.easeTo({
-              center: coordinates,
-              zoom: Math.max(zoom, map.getZoom() + 1.8),
-              duration: 900,
-              essential: true,
-            });
-          } catch {
-            map.easeTo({
-              center: coordinates,
-              zoom: map.getZoom() + 2,
-              duration: 900,
-              essential: true,
-            });
-          }
-        } else {
-          map.easeTo({
-            center: coordinates,
-            zoom: map.getZoom() + 2,
-            duration: 900,
-            essential: true,
-          });
-        }
-      });
-
-      // Unclustered Point Click: Select city & start playback
-      map.on('click', 'unclustered-circle', (e: MapLayerMouseEvent) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ['unclustered-circle'],
+          layers: ['city-dots'],
         });
         if (!features.length) return;
 
@@ -403,8 +334,8 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         }
       });
 
-      // Cluster Hover Dynamics
-      map.on('mousemove', 'clusters-circle', (e: MapLayerMouseEvent) => {
+      // Hover Dynamics on City Dots
+      map.on('mousemove', 'city-dots', (e: MapLayerMouseEvent) => {
         map.getCanvas().style.cursor = 'pointer';
         if (e.features && e.features.length > 0) {
           const currentId = e.features[0].id;
@@ -424,7 +355,7 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         }
       });
 
-      map.on('mouseleave', 'clusters-circle', () => {
+      map.on('mouseleave', 'city-dots', () => {
         map.getCanvas().style.cursor = '';
         if (hoveredClusterIdRef.current !== null) {
           map.setFeatureState(
@@ -433,15 +364,6 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
           );
           hoveredClusterIdRef.current = null;
         }
-      });
-
-      // Unclustered Hover Cursor
-      map.on('mouseenter', 'unclustered-circle', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
-
-      map.on('mouseleave', 'unclustered-circle', () => {
-        map.getCanvas().style.cursor = '';
       });
 
       return () => {
