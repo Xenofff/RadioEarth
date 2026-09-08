@@ -1,7 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CameraCoordinates, CityGroup } from '../types/radio';
+import { CameraCoordinates, CityGroup, Station } from '../types/radio';
 
 export interface MapGlobeViewHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
@@ -10,7 +10,7 @@ export interface MapGlobeViewHandle {
 interface MapGlobeViewProps {
   cities: CityGroup[];
   selectedCity: CityGroup | null;
-  onSelectCity: (city: CityGroup) => void;
+  onSelectCity: (city: CityGroup, targetStation?: Station, shouldFlyTo?: boolean) => void;
   onCameraChange: (coords: CameraCoordinates) => void;
 }
 
@@ -19,17 +19,27 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const isStyleLoadedRef = useRef<boolean>(false);
-    const hoveredClusterIdRef = useRef<string | number | null>(null);
+    const hoveredDotIdRef = useRef<string | number | null>(null);
+
+    // Flags for interactive dragging & reticle station auto-tune
+    const isMouseDownRef = useRef<boolean>(false);
+    const isUserInteractingRef = useRef<boolean>(false);
+    const isProgrammaticMoveRef = useRef<boolean>(false);
+    const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const onSelectCityRef = useRef(onSelectCity);
+    onSelectCityRef.current = onSelectCity;
 
     // Imperative flyTo method for camera positioning
     useImperativeHandle(ref, () => ({
       flyTo: (lat: number, lng: number, zoom = 4.5) => {
         if (mapRef.current) {
+          isProgrammaticMoveRef.current = true;
           mapRef.current.flyTo({
             center: [lng, lat],
             zoom,
-            speed: 1.2,
-            curve: 1.4,
+            speed: 0.95,
+            curve: 1.42,
             essential: true,
           });
         }
@@ -316,7 +326,183 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         handleCameraUpdate();
       });
 
-      // Click on any city dot -> select city, open drawer with station list, start playback
+      const cancelScan = () => {
+        if (scanTimerRef.current) {
+          clearTimeout(scanTimerRef.current);
+          scanTimerRef.current = null;
+        }
+      };
+
+      const performReticleScan = () => {
+        if (!map || !isStyleLoadedRef.current) return;
+        // If user is currently holding the mouse down, do not interrupt!
+        if (isMouseDownRef.current) return;
+
+        const canvas = map.getCanvas();
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Radius of central reticle circle (matches 56px diameter HUD reticle)
+        const RETICLE_RADIUS = 28;
+        // Search radius for magnetic snapping around the reticle
+        const MAGNETIC_RADIUS = 75;
+
+        const bbox: [[number, number], [number, number]] = [
+          [centerX - MAGNETIC_RADIUS, centerY - MAGNETIC_RADIUS],
+          [centerX + MAGNETIC_RADIUS, centerY + MAGNETIC_RADIUS],
+        ];
+
+        const features = map.queryRenderedFeatures(bbox, {
+          layers: ['city-dots'],
+        });
+
+        if (!features || features.length === 0) return;
+
+        const candidates: Array<{ city: CityGroup; distance: number }> = [];
+        const seen = new Set<string>();
+
+        for (const f of features) {
+          const raw = f.properties?.cityData;
+          if (!raw) continue;
+          try {
+            const city: CityGroup = JSON.parse(raw);
+            if (seen.has(city.id)) continue;
+            seen.add(city.id);
+
+            const screenPos = map.project([city.lng, city.lat]);
+            const distance = Math.hypot(screenPos.x - centerX, screenPos.y - centerY);
+            candidates.push({ city, distance });
+          } catch {
+            // ignore JSON error
+          }
+        }
+
+        if (candidates.length === 0) return;
+
+        // 1. Check if any stations/cities are directly inside the reticle circle
+        const insideReticle = candidates.filter((c) => c.distance <= RETICLE_RADIUS);
+
+        if (insideReticle.length > 0) {
+          // If multiple cities in the circle, pick a random one
+          const chosen = insideReticle[Math.floor(Math.random() * insideReticle.length)].city;
+          let chosenStation: Station | undefined;
+          if (chosen.stations.length > 0) {
+            chosenStation = chosen.stations[Math.floor(Math.random() * chosen.stations.length)];
+          }
+
+          // Smoothly glide the reticle center to the center of the radio station dot
+          isProgrammaticMoveRef.current = true;
+          map.easeTo({
+            center: [chosen.lng, chosen.lat],
+            duration: 600,
+            easing: (t) => 1 - Math.pow(1 - t, 3), // Smooth cubic ease-out
+            essential: true,
+          });
+
+          onSelectCityRef.current(chosen, chosenStation, false);
+          return;
+        }
+
+        // 2. If nothing directly inside the circle, check magnetic snap radius
+        const insideMagnetic = candidates.filter((c) => c.distance <= MAGNETIC_RADIUS);
+
+        if (insideMagnetic.length > 0) {
+          // Sort by distance ascending to pick the nearest city
+          insideMagnetic.sort((a, b) => a.distance - b.distance);
+          const chosen = insideMagnetic[0].city;
+
+          let chosenStation: Station | undefined;
+          if (chosen.stations.length > 0) {
+            chosenStation = chosen.stations[Math.floor(Math.random() * chosen.stations.length)];
+          }
+
+          // Magnetic snap: smoothly center the dot into the reticle at current zoom level
+          isProgrammaticMoveRef.current = true;
+          map.easeTo({
+            center: [chosen.lng, chosen.lat],
+            duration: 700,
+            easing: (t) => 1 - Math.pow(1 - t, 3), // Smooth cubic ease-out
+            essential: true,
+          });
+
+          onSelectCityRef.current(chosen, chosenStation, false);
+          return;
+        }
+
+        // 3. If nothing near, do not play anything
+      };
+
+      const scheduleScan = () => {
+        cancelScan();
+        scanTimerRef.current = setTimeout(() => {
+          performReticleScan();
+        }, 350); // 300-400ms range
+      };
+
+      // Map movement and user dragging detection with natural inertia preservation
+      map.on('movestart', (e) => {
+        if (isProgrammaticMoveRef.current) return;
+        cancelScan();
+        if (e.originalEvent) {
+          isUserInteractingRef.current = true;
+        }
+      });
+
+      map.on('move', () => {
+        handleCameraUpdate();
+        if (isProgrammaticMoveRef.current) return;
+        if (isUserInteractingRef.current) {
+          cancelScan();
+          // If mouse is released and map is coasting on inertia, debounce scan
+          if (!isMouseDownRef.current) {
+            scheduleScan();
+          }
+        }
+      });
+
+      map.on('dragstart', () => {
+        cancelScan();
+        isUserInteractingRef.current = true;
+        isMouseDownRef.current = true;
+      });
+
+      map.on('dragend', () => {
+        isMouseDownRef.current = false;
+        scheduleScan();
+      });
+
+      map.on('moveend', () => {
+        if (isProgrammaticMoveRef.current) {
+          isProgrammaticMoveRef.current = false;
+          return;
+        }
+        if (isUserInteractingRef.current) {
+          isUserInteractingRef.current = false;
+          scheduleScan();
+        }
+      });
+
+      const handleCanvasMouseDown = () => {
+        isMouseDownRef.current = true;
+        cancelScan();
+      };
+
+      const handleCanvasMouseUp = () => {
+        isMouseDownRef.current = false;
+        if (isUserInteractingRef.current) {
+          scheduleScan();
+        }
+      };
+
+      const canvas = map.getCanvas();
+      canvas.addEventListener('mousedown', handleCanvasMouseDown);
+      canvas.addEventListener('touchstart', handleCanvasMouseDown);
+      canvas.addEventListener('mouseup', handleCanvasMouseUp);
+      canvas.addEventListener('touchend', handleCanvasMouseUp);
+
+      // Click on any city dot -> select city, fly to it, open drawer with station list, start playback
       map.on('click', 'city-dots', (e: MapLayerMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: ['city-dots'],
@@ -327,7 +513,7 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         if (rawData) {
           try {
             const cityGroup: CityGroup = JSON.parse(rawData);
-            onSelectCity(cityGroup);
+            onSelectCityRef.current(cityGroup, undefined, true);
           } catch (err) {
             console.error('Failed to parse city data:', err);
           }
@@ -339,14 +525,14 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         map.getCanvas().style.cursor = 'pointer';
         if (e.features && e.features.length > 0) {
           const currentId = e.features[0].id;
-          if (hoveredClusterIdRef.current !== null && hoveredClusterIdRef.current !== currentId) {
+          if (hoveredDotIdRef.current !== null && hoveredDotIdRef.current !== currentId) {
             map.setFeatureState(
-              { source: 'stations-source', id: hoveredClusterIdRef.current },
+              { source: 'stations-source', id: hoveredDotIdRef.current },
               { hover: false }
             );
           }
           if (currentId !== undefined) {
-            hoveredClusterIdRef.current = currentId;
+            hoveredDotIdRef.current = currentId;
             map.setFeatureState(
               { source: 'stations-source', id: currentId },
               { hover: true }
@@ -357,16 +543,21 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
 
       map.on('mouseleave', 'city-dots', () => {
         map.getCanvas().style.cursor = '';
-        if (hoveredClusterIdRef.current !== null) {
+        if (hoveredDotIdRef.current !== null) {
           map.setFeatureState(
-            { source: 'stations-source', id: hoveredClusterIdRef.current },
+            { source: 'stations-source', id: hoveredDotIdRef.current },
             { hover: false }
           );
-          hoveredClusterIdRef.current = null;
+          hoveredDotIdRef.current = null;
         }
       });
 
       return () => {
+        cancelScan();
+        canvas.removeEventListener('mousedown', handleCanvasMouseDown);
+        canvas.removeEventListener('touchstart', handleCanvasMouseDown);
+        canvas.removeEventListener('mouseup', handleCanvasMouseUp);
+        canvas.removeEventListener('touchend', handleCanvasMouseUp);
         map.remove();
         mapRef.current = null;
         isStyleLoadedRef.current = false;

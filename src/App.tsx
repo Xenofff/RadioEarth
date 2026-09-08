@@ -56,17 +56,18 @@ export function App() {
   }, [loadData]);
 
   // Обработка клика по городу на глобусе
+  // Обработка выбора города (по клику или через интерактивный прицел)
   const handleSelectCity = useCallback(
-    (city: CityGroup, targetStation?: Station) => {
+    (city: CityGroup, targetStation?: Station, shouldFlyTo: boolean = true) => {
       setSelectedCity(city);
       setIsDrawerOpen(true);
 
-      // 1. Плавный подлет камеры к выбранному городу
-      if (globeRef.current) {
+      // 1. Плавный подлет камеры к выбранному городу (только если shouldFlyTo === true)
+      if (shouldFlyTo && globeRef.current) {
         globeRef.current.flyTo(city.lat, city.lng, 4.5);
       }
 
-      // 2. Запуск случайной станции из выбранного города
+      // 2. Запуск выбранной или случайной станции из города
       if (targetStation) {
         playStation(targetStation);
       } else if (city.stations.length > 0) {
@@ -82,7 +83,7 @@ export function App() {
   const handleRandomTune = useCallback(() => {
     if (cities.length === 0) return;
     const randomCity = cities[Math.floor(Math.random() * cities.length)];
-    handleSelectCity(randomCity);
+    handleSelectCity(randomCity, undefined, true);
   }, [cities, handleSelectCity]);
 
   // Переключение станций внутри текущего выбранного города
@@ -110,7 +111,9 @@ export function App() {
         ref={globeRef}
         cities={cities}
         selectedCity={selectedCity}
-        onSelectCity={(city) => handleSelectCity(city)}
+        onSelectCity={(city, targetStation, shouldFlyTo) =>
+          handleSelectCity(city, targetStation, shouldFlyTo)
+        }
         onCameraChange={(coords) => setCameraCoords(coords)}
       />
 

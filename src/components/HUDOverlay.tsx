@@ -85,27 +85,27 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
         </div>
       </header>
 
-      {/* Minimalist Central Tactical Reticle */}
+      {/* Compact Interactive Reticle (Radio Garden Style) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="relative w-28 h-28 md:w-36 md:h-36 flex items-center justify-center">
-          {/* Thin Outer Ring */}
-          <div className="absolute inset-0 rounded-full border border-[#16C683]/20"></div>
+        <div className="relative w-14 h-14 flex items-center justify-center transition-transform duration-200">
+          {/* Main Crisp Ring */}
+          <div className="absolute inset-0 rounded-full border-[1.5px] border-white/80 shadow-[0_0_12px_rgba(22,198,131,0.35)]"></div>
 
-          {/* Dotted Inner Ring */}
-          <div className="absolute inset-3 rounded-full border border-dashed border-[#16C683]/25"></div>
+          {/* Subtle Outer Glow Halo */}
+          <div className="absolute -inset-1 rounded-full border border-[#16C683]/25"></div>
 
-          {/* Corner Brackets */}
-          <div className="absolute top-0 left-0 w-2.5 h-2.5 border-t-2 border-l-2 border-[#16C683]/80"></div>
-          <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t-2 border-r-2 border-[#16C683]/80"></div>
-          <div className="absolute bottom-0 left-0 w-2.5 h-2.5 border-b-2 border-l-2 border-[#16C683]/80"></div>
-          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 border-b-2 border-r-2 border-[#16C683]/80"></div>
+          {/* 4 Fine Cardinal Ticks */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-[1px] h-2 bg-white/80"></div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-[1px] h-2 bg-white/80"></div>
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 h-[1px] w-2 bg-white/80"></div>
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 h-[1px] w-2 bg-white/80"></div>
 
-          {/* Reticle Fine Crosshairs */}
-          <div className="absolute w-5 h-[1px] bg-[#16C683]/60"></div>
-          <div className="absolute h-5 w-[1px] bg-[#16C683]/60"></div>
+          {/* Center Crosshairs */}
+          <div className="absolute w-3 h-[1px] bg-[#16C683]/70"></div>
+          <div className="absolute h-3 w-[1px] bg-[#16C683]/70"></div>
 
           {/* Center Point */}
-          <div className="w-1.5 h-1.5 rounded-full bg-[#16C683] shadow-[0_0_8px_#16C683]"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#16C683] shadow-[0_0_6px_#16C683]"></div>
         </div>
       </div>
 
