@@ -16,9 +16,12 @@ export interface Translations {
   orbitTelemetry: (cities: number, stations: number) => string;
   engineOnline: string;
 
-  // Language Switcher
+  // Language & Theme Switcher
   switchLangTitle: string;
   currentLangLabel: string;
+  switchThemeTitle: string;
+  themeLight: string;
+  themeDark: string;
 
   // Player Bottom
   buffering: string;
@@ -77,6 +80,9 @@ export const translations: Record<Language, Translations> = {
 
     switchLangTitle: 'Переключить язык (Switch to English)',
     currentLangLabel: 'RU',
+    switchThemeTitle: 'Сменить тему оформления',
+    themeLight: 'Светлая тема',
+    themeDark: 'Темная тема',
 
     buffering: 'БУФЕРИЗАЦИЯ ПОТОКА...',
     onAir: 'В ЭФИРЕ',
@@ -122,6 +128,9 @@ export const translations: Record<Language, Translations> = {
 
     switchLangTitle: 'Switch language to Russian / Переключить на русский',
     currentLangLabel: 'EN',
+    switchThemeTitle: 'Switch theme',
+    themeLight: 'Light theme',
+    themeDark: 'Dark theme',
 
     buffering: 'BUFFERING STREAM...',
     onAir: 'ON AIR',

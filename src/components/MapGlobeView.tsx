@@ -2,7 +2,12 @@ import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 
 import { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CameraCoordinates, CityGroup, Station } from '../types/radio';
+import { useTheme } from '../theme/ThemeContext';
 import { SpaceBackground } from './SpaceBackground';
+import { LightBackground } from './LightBackground';
+
+const DARK_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+const LIGHT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
 export interface MapGlobeViewHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
@@ -17,6 +22,16 @@ interface MapGlobeViewProps {
 
 export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
   ({ cities, selectedCity, onSelectCity, onCameraChange }, ref) => {
+    const { theme, isDark } = useTheme();
+    const themeRef = useRef(theme);
+    themeRef.current = theme;
+
+    const citiesRef = useRef(cities);
+    citiesRef.current = cities;
+
+    const selectedCityRef = useRef(selectedCity);
+    selectedCityRef.current = selectedCity;
+
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const isStyleLoadedRef = useRef<boolean>(false);
@@ -70,117 +85,113 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
       };
     }, []);
 
-    // Initialize MapLibre GL instance
-    useEffect(() => {
-      if (!mapContainerRef.current) return;
+    // Setup layers on map style load
+    const setupGlobeLayers = useCallback((map: MapLibreMap, currentTheme: 'dark' | 'light') => {
+      isStyleLoadedRef.current = true;
 
-      const map = new MapLibreMap({
-        container: mapContainerRef.current,
-        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-        center: [0, 20],
-        zoom: 1.5,
-        minZoom: 1,
-        maxZoom: 14,
-        attributionControl: false,
+      // Set native 3D globe projection
+      map.setProjection({
+        type: 'globe',
       });
 
-      mapRef.current = map;
-
-      // Handle camera telemetry updates
-      const handleCameraUpdate = () => {
-        const center = map.getCenter();
-        const zoom = map.getZoom();
-        onCameraChange({
-          lat: center.lat,
-          lng: center.lng,
-          altitude: Number(zoom.toFixed(2)),
-        });
-      };
-
-      map.on('move', handleCameraUpdate);
-
-      // Once style loads, activate Globe projection and configure layers
-      map.on('style.load', () => {
-        isStyleLoadedRef.current = true;
-
-        // Set native 3D globe projection
-        map.setProjection({
-          type: 'globe',
-        });
-
-        // Set space sky & atmospheric halo with transparency to reveal cosmic background
-        try {
+      // Configure sky & atmospheric halo
+      try {
+        if (currentTheme === 'dark') {
           map.setSky({
             'sky-color': 'rgba(0, 0, 0, 0)',
             'horizon-color': 'rgba(22, 198, 131, 0.15)',
             'fog-color': 'rgba(0, 0, 0, 0)',
             'atmosphere-blend': 0.75,
           });
-        } catch {
-          // Ignored if sky is not supported in current style version
-        }
-
-        // Set background and ocean colors for high-contrast presentation
-        if (map.getLayer('background')) {
-          map.setPaintProperty('background', 'background-color', 'rgb(47, 49, 54)');
-        }
-        if (map.getLayer('water')) {
-          map.setPaintProperty('water', 'fill-color', '#0B0E14');
-        }
-
-        // Add explicit vector countries layer with fill-color rgb(47, 49, 54)
-        if (!map.getSource('countries-source')) {
-          map.addSource('countries-source', {
-            type: 'geojson',
-            data: '/data/countries.geojson',
+        } else {
+          map.setSky({
+            'sky-color': 'rgba(235, 240, 245, 0)',
+            'horizon-color': 'rgba(16, 185, 129, 0.22)',
+            'fog-color': 'rgba(235, 240, 245, 0)',
+            'atmosphere-blend': 0.8,
           });
-
-          map.addLayer(
-            {
-              id: 'countries-fill',
-              type: 'fill',
-              source: 'countries-source',
-              paint: {
-                'fill-color': 'rgb(47, 49, 54)',
-                'fill-opacity': 1,
-              },
-            },
-            'water'
-          );
-
-          map.addLayer(
-            {
-              id: 'countries-border',
-              type: 'line',
-              source: 'countries-source',
-              paint: {
-                'line-color': 'rgba(255, 255, 255, 0.12)',
-                'line-width': 0.8,
-              },
-            },
-            'water'
-          );
         }
+      } catch {
+        // Ignored if sky is not supported
+      }
 
-        // Add stations GeoJSON source (unclustered for Radio Garden starry dot aesthetics)
-        map.addSource('stations-source', {
+      // Set background and ocean colors
+      if (map.getLayer('background')) {
+        map.setPaintProperty(
+          'background',
+          'background-color',
+          currentTheme === 'dark' ? 'rgb(47, 49, 54)' : '#E6ECF2'
+        );
+      }
+      if (map.getLayer('water')) {
+        map.setPaintProperty(
+          'water',
+          'fill-color',
+          currentTheme === 'dark' ? '#0B0E14' : '#D0DFEB'
+        );
+      }
+
+      // Add explicit vector countries layer
+      if (!map.getSource('countries-source')) {
+        map.addSource('countries-source', {
           type: 'geojson',
-          data: buildGeoJson(cities),
-          cluster: false,
+          data: '/data/countries.geojson',
         });
 
-        // Add dedicated source for selected city targeting reticle & pulse
+        const beforeLayer = map.getLayer('water') ? 'water' : undefined;
+
+        map.addLayer(
+          {
+            id: 'countries-fill',
+            type: 'fill',
+            source: 'countries-source',
+            paint: {
+              'fill-color': currentTheme === 'dark' ? 'rgb(47, 49, 54)' : '#E8EEF5',
+              'fill-opacity': 1,
+            },
+          },
+          beforeLayer
+        );
+
+        map.addLayer(
+          {
+            id: 'countries-border',
+            type: 'line',
+            source: 'countries-source',
+            paint: {
+              'line-color':
+                currentTheme === 'dark'
+                  ? 'rgba(255, 255, 255, 0.12)'
+                  : 'rgba(100, 116, 139, 0.3)',
+              'line-width': 0.8,
+            },
+          },
+          beforeLayer
+        );
+      }
+
+      // Add stations GeoJSON source
+      if (!map.getSource('stations-source')) {
+        map.addSource('stations-source', {
+          type: 'geojson',
+          data: buildGeoJson(citiesRef.current),
+          cluster: false,
+        });
+      }
+
+      // Add dedicated source for selected city targeting reticle & pulse
+      if (!map.getSource('selected-city-source')) {
         map.addSource('selected-city-source', {
           type: 'geojson',
           data: {
             type: 'FeatureCollection',
-            features: selectedCity
+            features: selectedCityRef.current
               ? [
                   {
                     type: 'Feature',
                     geometry: {
                       type: 'Point',
-                      coordinates: [selectedCity.lng, selectedCity.lat],
+                      coordinates: [selectedCityRef.current.lng, selectedCityRef.current.lat],
                     },
                     properties: {},
                   },
@@ -188,21 +199,25 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
               : [],
           },
         });
+      }
 
-        // 1. SELECTED CITY: Ambient green pulse behind the active city
+      // 1. SELECTED CITY: Ambient pulse
+      if (!map.getLayer('selected-city-pulse')) {
         map.addLayer({
           id: 'selected-city-pulse',
           type: 'circle',
           source: 'selected-city-source',
           paint: {
-            'circle-color': '#2FE29C',
+            'circle-color': currentTheme === 'dark' ? '#2FE29C' : '#10B981',
             'circle-radius': 22,
             'circle-blur': 0.75,
-            'circle-opacity': 0.55,
+            'circle-opacity': currentTheme === 'dark' ? 0.55 : 0.45,
           },
         });
+      }
 
-        // 2. SELECTED CITY: Iconic Radio Garden white reticle ring
+      // 2. SELECTED CITY: White or dark reticle ring
+      if (!map.getLayer('selected-city-reticle')) {
         map.addLayer({
           id: 'selected-city-reticle',
           type: 'circle',
@@ -211,20 +226,22 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             'circle-color': 'rgba(0, 0, 0, 0)',
             'circle-radius': 16,
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': currentTheme === 'dark' ? '#FFFFFF' : '#0F172A',
             'circle-stroke-opacity': 0.95,
           },
         });
+      }
 
-        // 3. CITY DOTS GLOW: Soft emerald aura scaled by station density
+      // 3. CITY DOTS GLOW: Soft aura scaled by station density
+      if (!map.getLayer('city-dots-glow')) {
         map.addLayer({
           id: 'city-dots-glow',
           type: 'circle',
           source: 'stations-source',
           paint: {
-            'circle-color': '#16C683',
+            'circle-color': currentTheme === 'dark' ? '#16C683' : '#059669',
             'circle-blur': 0.55,
-            'circle-opacity': 0.45,
+            'circle-opacity': currentTheme === 'dark' ? 0.45 : 0.35,
             'circle-radius': [
               'interpolate',
               ['linear'],
@@ -250,8 +267,10 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             ],
           },
         });
+      }
 
-        // 4. CITY DOTS: Radio Garden style dots (small for 1 station, larger for multiple, largest for major hubs)
+      // 4. CITY DOTS: Radio Garden style dots
+      if (!map.getLayer('city-dots')) {
         map.addLayer({
           id: 'city-dots',
           type: 'circle',
@@ -260,8 +279,8 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             'circle-color': [
               'case',
               ['boolean', ['feature-state', 'hover'], false],
-              '#2FE29C',
-              '#16C683',
+              currentTheme === 'dark' ? '#2FE29C' : '#10B981',
+              currentTheme === 'dark' ? '#16C683' : '#059669',
             ],
             'circle-radius': [
               'interpolate',
@@ -295,13 +314,15 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             'circle-stroke-color': [
               'case',
               ['boolean', ['feature-state', 'hover'], false],
-              '#FFFFFF',
-              'rgba(255, 255, 255, 0.45)'
+              currentTheme === 'dark' ? '#FFFFFF' : '#0F172A',
+              currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.45)' : 'rgba(15, 23, 42, 0.35)'
             ],
           },
         });
+      }
 
-        // 5. CITY LABELS: Clean minimal typography for multi-station cities when zoomed in
+      // 5. CITY LABELS: Clean minimal typography
+      if (!map.getLayer('city-labels')) {
         map.addLayer({
           id: 'city-labels',
           type: 'symbol',
@@ -317,13 +338,47 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             'text-optional': true,
           },
           paint: {
-            'text-color': '#E6EDF3',
-            'text-halo-color': '#0B0E14',
+            'text-color': currentTheme === 'dark' ? '#E6EDF3' : '#0F172A',
+            'text-halo-color': currentTheme === 'dark' ? '#0B0E14' : '#FFFFFF',
             'text-halo-width': 1.8,
           },
         });
+      }
+    }, [buildGeoJson]);
 
-        // Initial camera update
+    // Initialize MapLibre GL instance
+    useEffect(() => {
+      if (!mapContainerRef.current) return;
+
+      const initialStyle = themeRef.current === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE;
+      const map = new MapLibreMap({
+        container: mapContainerRef.current,
+        style: initialStyle,
+        center: [0, 20],
+        zoom: 1.5,
+        minZoom: 1,
+        maxZoom: 14,
+        attributionControl: false,
+      });
+
+      mapRef.current = map;
+
+      // Handle camera telemetry updates
+      const handleCameraUpdate = () => {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        onCameraChange({
+          lat: center.lat,
+          lng: center.lng,
+          altitude: Number(zoom.toFixed(2)),
+        });
+      };
+
+      map.on('move', handleCameraUpdate);
+
+      // Once style loads, activate Globe projection and configure layers
+      map.on('style.load', () => {
+        setupGlobeLayers(map, themeRef.current);
         handleCameraUpdate();
       });
 
@@ -601,10 +656,26 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
       }
     }, [selectedCity]);
 
+    // Switch map style when theme changes
+    const activeStyleThemeRef = useRef(theme);
+    useEffect(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (activeStyleThemeRef.current === theme) return;
+      activeStyleThemeRef.current = theme;
+
+      isStyleLoadedRef.current = false;
+      map.setStyle(theme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE);
+    }, [theme]);
+
     return (
-      <div className="relative w-full h-full bg-[#07090D] overflow-hidden select-none">
-        {/* Rich Multi-Layer Cosmic Starfield & Nebula Background */}
-        <SpaceBackground />
+      <div
+        className={`relative w-full h-full ${
+          isDark ? 'bg-[#07090D]' : 'bg-[#EBF0F5]'
+        } overflow-hidden select-none`}
+      >
+        {/* Dynamic Celestial or Neutral Studio Background */}
+        {isDark ? <SpaceBackground /> : <LightBackground />}
 
         {/* MapLibre Canvas Container */}
         <div ref={mapContainerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />

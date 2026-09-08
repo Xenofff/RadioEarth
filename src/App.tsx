@@ -8,9 +8,11 @@ import { useRadioPlayer } from './hooks/useRadioPlayer';
 import { CameraCoordinates, CityGroup, Station } from './types/radio';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
+import { useTheme } from './theme/ThemeContext';
 
 export function App() {
   const { t } = useLanguage();
+  const { isDark } = useTheme();
   const [cities, setCities] = useState<CityGroup[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityGroup | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
@@ -107,8 +109,12 @@ export function App() {
   const totalStations = cities.reduce((acc, c) => acc + c.stations.length, 0);
 
   return (
-    <div className="relative w-screen h-screen bg-[#0B0E14] overflow-hidden">
-      {/* Векторный 3D Глобус MapLibre GL с Carto Dark Matter и кластеризацией станций */}
+    <div
+      className={`relative w-screen h-screen transition-colors duration-300 ${
+        isDark ? 'bg-[#0B0E14]' : 'bg-[#EBF0F5]'
+      } overflow-hidden`}
+    >
+      {/* Векторный 3D Глобус MapLibre GL с Carto Dark Matter / Positron */}
       <MapGlobeView
         ref={globeRef}
         cities={cities}
@@ -158,16 +164,40 @@ export function App() {
 
       {/* Экран загрузки */}
       {isLoading && (
-        <div className="absolute inset-0 z-50 bg-[#0B0E14]/90 backdrop-blur-md flex flex-col items-center justify-center p-6 select-none">
+        <div
+          className={`absolute inset-0 z-50 backdrop-blur-md flex flex-col items-center justify-center p-6 select-none transition-colors ${
+            isDark ? 'bg-[#0B0E14]/90 text-white' : 'bg-slate-50/90 text-slate-900'
+          }`}
+        >
           <div className="relative flex items-center justify-center w-16 h-16 mb-4">
-            <div className="absolute inset-0 rounded-full border border-[#16C683]/25 animate-ping"></div>
-            <div className="w-14 h-14 rounded-full border-2 border-[#16C683] border-t-transparent animate-spin"></div>
-            <Loader2 className="w-7 h-7 text-[#16C683] animate-pulse absolute" />
+            <div
+              className={`absolute inset-0 rounded-full border animate-ping ${
+                isDark ? 'border-[#16C683]/25' : 'border-emerald-500/25'
+              }`}
+            ></div>
+            <div
+              className={`w-14 h-14 rounded-full border-2 border-t-transparent animate-spin ${
+                isDark ? 'border-[#16C683]' : 'border-emerald-600'
+              }`}
+            ></div>
+            <Loader2
+              className={`w-7 h-7 animate-pulse absolute ${
+                isDark ? 'text-[#16C683]' : 'text-emerald-600'
+              }`}
+            />
           </div>
-          <h1 className="text-base font-mono font-bold text-white tracking-widest uppercase">
+          <h1
+            className={`text-base font-mono font-bold tracking-widest uppercase ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}
+          >
             {t.loadingTitle}
           </h1>
-          <p className="text-[11px] font-mono text-[#8B949E] mt-1.5">
+          <p
+            className={`text-[11px] font-mono mt-1.5 ${
+              isDark ? 'text-[#8B949E]' : 'text-slate-500'
+            }`}
+          >
             {t.loadingSubtitle}
           </p>
         </div>
@@ -175,13 +205,35 @@ export function App() {
 
       {/* Ошибка сети */}
       {apiError && !isLoading && (
-        <div className="absolute inset-0 z-50 bg-[#0B0E14]/90 flex items-center justify-center p-6">
-          <div className="bg-[#12161F] border border-rose-500/30 rounded-2xl p-6 max-w-md text-center shadow-2xl">
-            <h2 className="text-base font-mono font-bold text-rose-400 mb-2">{t.errorTitle}</h2>
-            <p className="text-xs text-[#8B949E] mb-5">{t.errorMessage}</p>
+        <div
+          className={`absolute inset-0 z-50 flex items-center justify-center p-6 ${
+            isDark ? 'bg-[#0B0E14]/90' : 'bg-slate-900/30 backdrop-blur-sm'
+          }`}
+        >
+          <div
+            className={`border rounded-2xl p-6 max-w-md text-center shadow-2xl ${
+              isDark
+                ? 'bg-[#12161F] border-rose-500/30'
+                : 'bg-white border-rose-200 text-slate-900'
+            }`}
+          >
+            <h2 className="text-base font-mono font-bold text-rose-500 mb-2">
+              {t.errorTitle}
+            </h2>
+            <p
+              className={`text-xs mb-5 ${
+                isDark ? 'text-[#8B949E]' : 'text-slate-600'
+              }`}
+            >
+              {t.errorMessage}
+            </p>
             <button
               onClick={loadData}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16C683] text-[#0B0E14] font-mono text-xs font-semibold rounded-lg hover:bg-[#2FE29C] transition-colors"
+              className={`inline-flex items-center gap-2 px-4 py-2 font-mono text-xs font-semibold rounded-lg transition-colors ${
+                isDark
+                  ? 'bg-[#16C683] text-[#0B0E14] hover:bg-[#2FE29C]'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
             >
               <RefreshCw className="w-3.5 h-3.5" />
               {t.retryBtn}
