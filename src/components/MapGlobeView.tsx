@@ -255,6 +255,11 @@ export const MapGlobeView = memo(
           data: buildGeoJson(citiesRef.current),
           cluster: false,
         });
+      } else {
+        const src = map.getSource('stations-source') as GeoJSONSource | undefined;
+        if (src) {
+          src.setData(buildGeoJson(citiesRef.current));
+        }
       }
 
       // Add dedicated source for selected city targeting reticle & pulse

@@ -34,36 +34,88 @@ const RADIO_API_SERVERS = [
 const SEARCH_PARAMS =
   'has_geo_info=true&limit=3500&order=clickcount&reverse=true&hidebroken=true';
 
-/**
- * Fetches stations from Radio Browser API, filters by valid GPS coordinates
- * and secure HTTPS audio streams, and groups them by geographical location / city.
- */
-export async function fetchStations(): Promise<CityGroup[]> {
-  try {
-    let rawData: RawApiStation[] | null = null;
-  let lastError: unknown = null;
+function groupStations(validStations: Station[]): CityGroup[] {
+  const cityMap = new Map<string, CityGroup>();
 
-  for (const server of RADIO_API_SERVERS) {
-    try {
-      const response = await fetch(`${server}/json/stations/search?${SEARCH_PARAMS}`, {
-        headers: {
-          'User-Agent': 'RadioEarthApp/1.0',
-        },
+  for (const station of validStations) {
+    const latCluster = (Math.round(station.lat * 8) / 8).toFixed(2);
+    const lngCluster = (Math.round(station.lng * 8) / 8).toFixed(2);
+    const clusterKey = `${latCluster}_${lngCluster}`;
+
+    const resolvedCityName =
+      station.state ||
+      station.name.split(/[-–—|:]/)[0].trim() ||
+      station.country;
+
+    if (!cityMap.has(clusterKey)) {
+      cityMap.set(clusterKey, {
+        id: clusterKey,
+        cityName: resolvedCityName,
+        country: station.country,
+        countryCode: station.countryCode,
+        lat: station.lat,
+        lng: station.lng,
+        stations: [station],
       });
-
-      if (response.ok) {
-        rawData = await response.json();
-        break;
+    } else {
+      const group = cityMap.get(clusterKey)!;
+      if (!group.stations.some((s) => s.id === station.id)) {
+        group.stations.push(station);
       }
-    } catch (err) {
-      lastError = err;
-      console.warn(`Radio API mirror ${server} failed, trying next mirror...`, err);
     }
   }
 
-  if (!rawData) {
-    throw lastError || new Error('Failed to fetch from all Radio API mirrors');
+  const groupedCities = Array.from(cityMap.values()).map((city) => {
+    city.stations.sort((a, b) => b.clickCount - a.clickCount);
+    return city;
+  });
+
+  groupedCities.sort((a, b) => b.stations.length - a.stations.length);
+  return groupedCities;
+}
+
+/**
+ * Fetches stations with high availability:
+ * 1. Loads pre-bundled data/stations.json snapshot (instant, zero CORS, guaranteed to work on GitHub Pages & offline).
+ * 2. Attempts live refresh from Radio Browser API mirrors without forbidden headers.
+ */
+export async function fetchStations(): Promise<CityGroup[]> {
+  // Strategy 1: Try local bundled snapshot first for instant, 100% reliable loading on GitHub Pages
+  try {
+    const snapshotUrl = `${import.meta.env.BASE_URL}data/stations.json`;
+    const snapshotRes = await fetch(snapshotUrl);
+    if (snapshotRes.ok) {
+      const snapshotStations: Station[] = await snapshotRes.json();
+      if (Array.isArray(snapshotStations) && snapshotStations.length > 0) {
+        console.log(`[RadioEarth] Loaded ${snapshotStations.length} stations from bundled snapshot.`);
+        return groupStations(snapshotStations);
+      }
+    }
+  } catch (snapshotErr) {
+    console.warn('[RadioEarth] Local snapshot load failed, trying live API...', snapshotErr);
   }
+
+  // Strategy 2: Fetch live stations from Radio Browser API
+  try {
+    let rawData: RawApiStation[] | null = null;
+    let lastError: unknown = null;
+
+    for (const server of RADIO_API_SERVERS) {
+      try {
+        const response = await fetch(`${server}/json/stations/search?${SEARCH_PARAMS}`);
+        if (response.ok) {
+          rawData = await response.json();
+          break;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[RadioEarth] Radio API mirror ${server} failed:`, err);
+      }
+    }
+
+    if (!rawData) {
+      throw lastError || new Error('Failed to fetch from all Radio API mirrors');
+    }
 
     // 1. Filter: must have valid latitude, longitude, and stream url starting with https://
     const validStations: Station[] = rawData
@@ -112,49 +164,7 @@ export async function fetchStations(): Promise<CityGroup[]> {
         };
       });
 
-    // 2. Group stations by city / location cluster (rounded to 0.15 deg ~ 15km)
-    const cityMap = new Map<string, CityGroup>();
-
-    for (const station of validStations) {
-      // Cluster key based on coordinate proximity
-      const latCluster = (Math.round(station.lat * 8) / 8).toFixed(2);
-      const lngCluster = (Math.round(station.lng * 8) / 8).toFixed(2);
-      const clusterKey = `${latCluster}_${lngCluster}`;
-
-      const resolvedCityName =
-        station.state ||
-        station.name.split(/[-–—|:]/)[0].trim() ||
-        station.country;
-
-      if (!cityMap.has(clusterKey)) {
-        cityMap.set(clusterKey, {
-          id: clusterKey,
-          cityName: resolvedCityName,
-          country: station.country,
-          countryCode: station.countryCode,
-          lat: station.lat,
-          lng: station.lng,
-          stations: [station],
-        });
-      } else {
-        const group = cityMap.get(clusterKey)!;
-        // Avoid duplicate stations in the same city cluster
-        if (!group.stations.some((s) => s.id === station.id)) {
-          group.stations.push(station);
-        }
-      }
-    }
-
-    // Sort stations inside each city by popularity (clickCount)
-    const groupedCities = Array.from(cityMap.values()).map((city) => {
-      city.stations.sort((a, b) => b.clickCount - a.clickCount);
-      return city;
-    });
-
-    // Sort cities by number of stations
-    groupedCities.sort((a, b) => b.stations.length - a.stations.length);
-
-    return groupedCities;
+    return groupStations(validStations);
   } catch (error) {
     console.error('Failed to fetch and group radio stations:', error);
     throw error;
