@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 
 // Seeded PRNG for deterministic celestial star positioning
 function createPRNG(seed: number) {
@@ -9,16 +9,13 @@ function createPRNG(seed: number) {
   };
 }
 
-interface Star {
-  x: number; // 0..1
-  y: number; // 0..1
+interface TwinkleStar {
+  id: number;
+  x: number; // percentage 0 - 100
+  y: number; // percentage 0 - 100
   r: number;
-  baseAlpha: number;
   color: string;
-  isTwinkling: boolean;
-  twinkleSpeed: number;
-  twinklePhase: number;
-  hasGlow: boolean;
+  twinkleClass: string;
 }
 
 const STAR_COLORS = [
@@ -34,6 +31,27 @@ const STAR_COLORS = [
 export const SpaceBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Generate 20 hero twinkling stars for GPU compositor animation
+  const twinklingStars: TwinkleStar[] = useMemo(() => {
+    const prng = createPRNG(42137);
+    const list: TwinkleStar[] = [];
+    const classes = ['animate-twinkle-1', 'animate-twinkle-2', 'animate-twinkle-3'];
+
+    for (let i = 0; i < 24; i++) {
+      const colorIndex = Math.floor(prng() * STAR_COLORS.length);
+      list.push({
+        id: i,
+        x: 4 + prng() * 92,
+        y: 4 + prng() * 92,
+        r: 1.8 + prng() * 1.0,
+        color: STAR_COLORS[colorIndex],
+        twinkleClass: classes[i % 3],
+      });
+    }
+    return list;
+  }, []);
+
+  // Static celestial starfield (drawn ONCE on mount/resize, 0% CPU consumption)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -41,59 +59,33 @@ export const SpaceBackground: React.FC = () => {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    // Generate stars deterministically
-    const prng = createPRNG(42137);
-    const starList: Star[] = [];
+    const prng = createPRNG(78912);
 
-    // 1. 220 Static Micro Background Stars
-    for (let i = 0; i < 220; i++) {
-      starList.push({
+    // 240 micro static background stars
+    const staticStars: { x: number; y: number; r: number; alpha: number; color: string }[] = [];
+    for (let i = 0; i < 240; i++) {
+      staticStars.push({
         x: prng(),
         y: prng(),
-        r: 0.6 + prng() * 0.6,
-        baseAlpha: 0.25 + prng() * 0.4,
+        r: 0.5 + prng() * 0.7,
+        alpha: 0.2 + prng() * 0.45,
         color: '#FFFFFF',
-        isTwinkling: false,
-        twinkleSpeed: 0,
-        twinklePhase: 0,
-        hasGlow: false,
       });
     }
 
-    // 2. 50 Mid-field Stars with spectral colors (some twinkle)
-    for (let i = 0; i < 50; i++) {
+    // 60 mid-field static colored stars
+    for (let i = 0; i < 60; i++) {
       const colorIndex = Math.floor(prng() * STAR_COLORS.length);
-      const twinkles = prng() > 0.4;
-      starList.push({
+      staticStars.push({
         x: prng(),
         y: prng(),
-        r: 1.1 + prng() * 0.7,
-        baseAlpha: 0.5 + prng() * 0.4,
+        r: 0.9 + prng() * 0.7,
+        alpha: 0.45 + prng() * 0.35,
         color: STAR_COLORS[colorIndex],
-        isTwinkling: twinkles,
-        twinkleSpeed: 1.2 + prng() * 2.0,
-        twinklePhase: prng() * Math.PI * 2,
-        hasGlow: false,
       });
     }
 
-    // 3. 16 Hero Stars with subtle glows & spikes
-    for (let i = 0; i < 16; i++) {
-      const colorIndex = Math.floor(prng() * 4);
-      starList.push({
-        x: 0.04 + prng() * 0.92,
-        y: 0.04 + prng() * 0.92,
-        r: 2.0 + prng() * 0.8,
-        baseAlpha: 0.85 + prng() * 0.15,
-        color: STAR_COLORS[colorIndex],
-        isTwinkling: true,
-        twinkleSpeed: 0.8 + prng() * 1.5,
-        twinklePhase: prng() * Math.PI * 2,
-        hasGlow: true,
-      });
-    }
-
-    // Constellation asterisms
+    // Constellation asterisms in corners
     const constellations = [
       [
         { x: 0.12, y: 0.15 },
@@ -109,144 +101,68 @@ export const SpaceBackground: React.FC = () => {
       ],
     ];
 
-    // Offscreen canvas for pre-rendering static stars & constellation lines
-    const staticCanvas = document.createElement('canvas');
-    const staticCtx = staticCanvas.getContext('2d');
-
-    let width = 0;
-    let height = 0;
-
-    const renderStaticPass = () => {
-      if (!staticCtx) return;
-      staticCanvas.width = width;
-      staticCanvas.height = height;
-      staticCtx.clearRect(0, 0, width, height);
-
-      // Draw constellation lines
-      staticCtx.strokeStyle = 'rgba(22, 198, 131, 0.22)';
-      staticCtx.lineWidth = 0.75;
-      staticCtx.setLineDash([2, 4]);
-
-      constellations.forEach((asterism) => {
-        staticCtx.beginPath();
-        asterism.forEach((p, idx) => {
-          const px = p.x * width;
-          const py = p.y * height;
-          if (idx === 0) staticCtx.moveTo(px, py);
-          else staticCtx.lineTo(px, py);
-        });
-        staticCtx.stroke();
-
-        // Node dots
-        staticCtx.fillStyle = 'rgba(22, 198, 131, 0.7)';
-        asterism.forEach((p) => {
-          staticCtx.beginPath();
-          staticCtx.arc(p.x * width, p.y * height, 1.8, 0, Math.PI * 2);
-          staticCtx.fill();
-        });
-      });
-      staticCtx.setLineDash([]);
-
-      // Draw static stars
-      starList.forEach((star) => {
-        if (star.isTwinkling) return;
-        staticCtx.fillStyle = star.color;
-        staticCtx.globalAlpha = star.baseAlpha;
-        staticCtx.beginPath();
-        staticCtx.arc(star.x * width, star.y * height, star.r, 0, Math.PI * 2);
-        staticCtx.fill();
-      });
-      staticCtx.globalAlpha = 1.0;
-    };
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5); // Cap DPR at 1.5 for optimal performance on Retina
-      width = window.innerWidth;
-      height = window.innerHeight;
+    const render = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
 
+      ctx.save();
       ctx.scale(dpr, dpr);
-      renderStaticPass();
-    };
-
-    resize();
-    window.addEventListener('resize', resize, { passive: true });
-
-    // Animation loop throttled to 30 FPS for twinkling stars (uses <0.5% CPU)
-    let animationFrameId: number;
-    let lastDrawTime = 0;
-    const targetInterval = 1000 / 30; // 30 FPS is silky smooth for cosmic twinkling
-
-    const animate = (currentTime: number) => {
-      animationFrameId = requestAnimationFrame(animate);
-
-      const elapsed = currentTime - lastDrawTime;
-      if (elapsed < targetInterval) return;
-      lastDrawTime = currentTime - (elapsed % targetInterval);
-
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Draw static starfield from pre-rendered offscreen buffer (instant blit)
-      if (staticCanvas.width > 0 && staticCanvas.height > 0) {
-        ctx.drawImage(staticCanvas, 0, 0, width, height);
-      }
+      // Draw constellation lines
+      ctx.strokeStyle = 'rgba(22, 198, 131, 0.2)';
+      ctx.lineWidth = 0.75;
+      ctx.setLineDash([2, 4]);
 
-      // 2. Draw only active twinkling & hero stars (~30 stars total)
-      const timeSec = currentTime * 0.001;
-      starList.forEach((star) => {
-        if (!star.isTwinkling) return;
-
-        const sx = star.x * width;
-        const sy = star.y * height;
-        const sinVal = Math.sin(timeSec * star.twinkleSpeed + star.twinklePhase);
-        const currentAlpha = Math.max(0.15, Math.min(1.0, star.baseAlpha + sinVal * 0.35));
-
-        // Soft halo for hero stars
-        if (star.hasGlow) {
-          ctx.fillStyle = star.color;
-          ctx.globalAlpha = currentAlpha * 0.2;
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.r * 2.8, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Subtle cross spikes
-          ctx.strokeStyle = star.color;
-          ctx.globalAlpha = currentAlpha * 0.6;
-          ctx.lineWidth = 0.6;
-          ctx.beginPath();
-          ctx.moveTo(sx - 6, sy);
-          ctx.lineTo(sx + 6, sy);
-          ctx.moveTo(sx, sy - 6);
-          ctx.lineTo(sx, sy + 6);
-          ctx.stroke();
-        }
-
-        // Core star
-        ctx.fillStyle = star.color;
-        ctx.globalAlpha = currentAlpha;
+      constellations.forEach((asterism) => {
         ctx.beginPath();
-        ctx.arc(sx, sy, star.r, 0, Math.PI * 2);
+        asterism.forEach((p, idx) => {
+          const px = p.x * width;
+          const py = p.y * height;
+          if (idx === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        // Node dots
+        ctx.fillStyle = 'rgba(22, 198, 131, 0.75)';
+        asterism.forEach((p) => {
+          ctx.beginPath();
+          ctx.arc(p.x * width, p.y * height, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+      ctx.setLineDash([]);
+
+      // Draw static stars
+      staticStars.forEach((star) => {
+        ctx.fillStyle = star.color;
+        ctx.globalAlpha = star.alpha;
+        ctx.beginPath();
+        ctx.arc(star.x * width, star.y * height, star.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
     };
 
-    animationFrameId = requestAnimationFrame(animate);
+    render();
+    window.addEventListener('resize', render, { passive: true });
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', render);
     };
   }, []);
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden select-none bg-[#07090D]">
-      {/* 1. Deep Space Cosmic Nebulas (Smooth CSS radial gradients without expensive blur filters) */}
+      {/* 1. Deep Space Cosmic Nebulas (Smooth CSS radial gradients, 0% CPU, 100% GPU composited) */}
       <div
         className="absolute -top-[20%] -left-[10%] w-[65vw] h-[65vw] rounded-full opacity-60 will-change-transform"
         style={{
@@ -278,28 +194,89 @@ export const SpaceBackground: React.FC = () => {
         }}
       />
 
-      {/* 3. Ultra-low overhead Canvas2D Starfield */}
+      {/* 3. Static Starfield Canvas (Rendered ONCE on load, 0% CPU at runtime) */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-      {/* 4. Elegant Meteors (GPU compositor accelerated translate3d) */}
-      <div className="absolute top-[18%] right-[22%] w-[140px] h-[1.5px] animate-meteor-1 origin-right will-change-transform">
+      {/* 4. Twinkling Hero Stars (Pure CSS opacity animation on GPU compositor, 0% CPU) */}
+      {twinklingStars.map((star) => (
         <div
-          className="w-full h-full rounded-full"
+          key={star.id}
+          className={`absolute rounded-full ${star.twinkleClass}`}
           style={{
-            background:
-              'linear-gradient(to right, rgba(22, 198, 131, 0) 0%, rgba(22, 198, 131, 0.4) 40%, rgba(255, 255, 255, 1) 100%)',
+            left: `${star.x}%`,
+            top: `${star.y}%`,
+            width: `${star.r * 2}px`,
+            height: `${star.r * 2}px`,
+            backgroundColor: star.color,
+            boxShadow: `0 0 ${star.r * 2.5}px ${star.color}`,
           }}
         />
+      ))}
+
+      {/* 5. Authentic Forward-Flying Comets (Distributed across 4 distinct sky quadrants) */}
+
+      {/* Comet 1: Upper-Right quadrant flying down-left */}
+      <div className="absolute top-[8%] left-[68%] animate-meteor-flight-1 pointer-events-none will-change-transform origin-left">
+        <div className="flex items-center">
+          {/* Fading trail behind */}
+          <div
+            className="w-[130px] h-[1.5px]"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(22, 198, 131, 0) 0%, rgba(22, 198, 131, 0.45) 50%, rgba(255, 255, 255, 0.95) 100%)',
+            }}
+          />
+          {/* Leading luminous head in front */}
+          <div className="w-1.5 h-1.5 -ml-1 rounded-full bg-white shadow-[0_0_8px_#ffffff,0_0_12px_#16C683]" />
+        </div>
       </div>
 
-      <div className="absolute top-[45%] left-[65%] w-[160px] h-[1.5px] animate-meteor-2 origin-right will-change-transform">
-        <div
-          className="w-full h-full rounded-full"
-          style={{
-            background:
-              'linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(147, 197, 253, 0.5) 50%, rgba(255, 255, 255, 1) 100%)',
-          }}
-        />
+      {/* Comet 2: Upper-Left quadrant flying down-right */}
+      <div className="absolute top-[14%] left-[10%] animate-meteor-flight-2 pointer-events-none will-change-transform origin-left">
+        <div className="flex items-center">
+          {/* Fading trail behind */}
+          <div
+            className="w-[140px] h-[1.5px]"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(147, 197, 253, 0) 0%, rgba(147, 197, 253, 0.5) 50%, rgba(255, 255, 255, 0.95) 100%)',
+            }}
+          />
+          {/* Leading luminous head in front */}
+          <div className="w-1.5 h-1.5 -ml-1 rounded-full bg-white shadow-[0_0_8px_#ffffff,0_0_12px_#93C5FD]" />
+        </div>
+      </div>
+
+      {/* Comet 3: Mid/Lower-Right quadrant flying down-left */}
+      <div className="absolute top-[52%] left-[74%] animate-meteor-flight-3 pointer-events-none will-change-transform origin-left">
+        <div className="flex items-center">
+          {/* Fading trail behind */}
+          <div
+            className="w-[125px] h-[1.5px]"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(254, 240, 138, 0) 0%, rgba(254, 240, 138, 0.4) 50%, rgba(255, 255, 255, 0.95) 100%)',
+            }}
+          />
+          {/* Leading luminous head in front */}
+          <div className="w-1.5 h-1.5 -ml-1 rounded-full bg-white shadow-[0_0_8px_#ffffff,0_0_10px_#FEF08A]" />
+        </div>
+      </div>
+
+      {/* Comet 4: Northern sky (Upper Center) flying down-right */}
+      <div className="absolute top-[5%] left-[34%] animate-meteor-flight-4 pointer-events-none will-change-transform origin-left">
+        <div className="flex items-center">
+          {/* Fading trail behind */}
+          <div
+            className="w-[150px] h-[1.5px]"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(22, 198, 131, 0) 0%, rgba(22, 198, 131, 0.45) 50%, rgba(255, 255, 255, 0.95) 100%)',
+            }}
+          />
+          {/* Leading luminous head in front */}
+          <div className="w-1.5 h-1.5 -ml-1 rounded-full bg-white shadow-[0_0_8px_#ffffff,0_0_12px_#16C683]" />
+        </div>
       </div>
     </div>
   );
