@@ -119,10 +119,8 @@ export function App() {
         ref={globeRef}
         cities={cities}
         selectedCity={selectedCity}
-        onSelectCity={(city, targetStation, shouldFlyTo) =>
-          handleSelectCity(city, targetStation, shouldFlyTo)
-        }
-        onCameraChange={(coords) => setCameraCoords(coords)}
+        onSelectCity={handleSelectCity}
+        onCameraChange={setCameraCoords}
       />
 
       {/* Компактный минималистичный HUD оверлей с прицелом и телеметрией */}

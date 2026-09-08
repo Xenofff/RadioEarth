@@ -27,13 +27,13 @@ export const LightBackground: React.FC = () => {
 
       {/* 3. Subtle ambient corner gradients for architectural depth */}
       <div
-        className="absolute -top-[20%] -left-[10%] w-[60vw] h-[60vw] rounded-full opacity-40 blur-3xl"
+        className="absolute -top-[20%] -left-[10%] w-[60vw] h-[60vw] rounded-full opacity-40 will-change-transform"
         style={{
           background: 'radial-gradient(circle, rgba(203, 213, 225, 0.6) 0%, transparent 70%)',
         }}
       />
       <div
-        className="absolute -bottom-[20%] -right-[10%] w-[65vw] h-[65vw] rounded-full opacity-40 blur-3xl"
+        className="absolute -bottom-[20%] -right-[10%] w-[65vw] h-[65vw] rounded-full opacity-40 will-change-transform"
         style={{
           background: 'radial-gradient(circle, rgba(226, 232, 240, 0.8) 0%, transparent 70%)',
         }}

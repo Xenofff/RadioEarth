@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback, memo } from 'react';
 import { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CameraCoordinates, CityGroup, Station } from '../types/radio';
@@ -21,8 +21,9 @@ interface MapGlobeViewProps {
   onCameraChange: (coords: CameraCoordinates) => void;
 }
 
-export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
-  ({ cities, selectedCity, onSelectCity, onCameraChange }, ref) => {
+export const MapGlobeView = memo(
+  forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
+    ({ cities, selectedCity, onSelectCity, onCameraChange }, ref) => {
     const { theme, isDark } = useTheme();
     const themeRef = useRef(theme);
     themeRef.current = theme;
@@ -440,14 +441,20 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
 
       mapRef.current = map;
 
-      // Handle camera telemetry updates
+      // Handle camera telemetry updates (throttled to RAF to avoid React state spam during movement)
+      let telemetryRaf: number | null = null;
       const handleCameraUpdate = () => {
-        const center = map.getCenter();
-        const zoom = map.getZoom();
-        onCameraChange({
-          lat: center.lat,
-          lng: center.lng,
-          altitude: Number(zoom.toFixed(2)),
+        if (telemetryRaf !== null) return;
+        telemetryRaf = requestAnimationFrame(() => {
+          telemetryRaf = null;
+          if (!mapRef.current) return;
+          const center = mapRef.current.getCenter();
+          const zoom = mapRef.current.getZoom();
+          onCameraChange({
+            lat: center.lat,
+            lng: center.lng,
+            altitude: Number(zoom.toFixed(2)),
+          });
         });
       };
 
@@ -687,6 +694,10 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
 
       return () => {
         cancelScan();
+        if (telemetryRaf !== null) {
+          cancelAnimationFrame(telemetryRaf);
+          telemetryRaf = null;
+        }
         canvas.removeEventListener('mousedown', handleCanvasMouseDown);
         canvas.removeEventListener('touchstart', handleCanvasMouseDown);
         canvas.removeEventListener('mouseup', handleCanvasMouseUp);
@@ -758,7 +769,7 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
         <div ref={mapContainerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
       </div>
     );
-  }
+  })
 );
 
 MapGlobeView.displayName = 'MapGlobeView';
