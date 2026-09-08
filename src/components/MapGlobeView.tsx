@@ -5,6 +5,7 @@ import { CameraCoordinates, CityGroup, Station } from '../types/radio';
 import { useTheme } from '../theme/ThemeContext';
 import { SpaceBackground } from './SpaceBackground';
 import { LightBackground } from './LightBackground';
+import { buildGraticuleGeoJson } from '../utils/mapTextures';
 
 const DARK_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const LIGHT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -140,6 +141,7 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
 
         const beforeLayer = map.getLayer('water') ? 'water' : undefined;
 
+        // 1. Solid Base Fill
         map.addLayer(
           {
             id: 'countries-fill',
@@ -153,6 +155,54 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
           beforeLayer
         );
 
+        // 2. Authentic Geographic Shaded Relief (Mountains, Valleys & Topography)
+        if (!map.getSource('shaded-relief-source')) {
+          map.addSource('shaded-relief-source', {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',
+            ],
+            tileSize: 256,
+            maxzoom: 13,
+          });
+        }
+
+        if (!map.getLayer('shaded-relief-layer')) {
+          map.addLayer(
+            {
+              id: 'shaded-relief-layer',
+              type: 'raster',
+              source: 'shaded-relief-source',
+              paint: {
+                // Subtle authentic relief shading on continents
+                'raster-opacity': currentTheme === 'dark' ? 0.32 : 0.28,
+                'raster-contrast': currentTheme === 'dark' ? 0.35 : 0.2,
+                'raster-brightness-max': currentTheme === 'dark' ? 0.75 : 0.95,
+                'raster-saturation': -1, // Monochrome topographical shading
+              },
+            },
+            beforeLayer // rendered under 'water' layer so oceans stay clean #0B0E14
+          );
+        }
+
+        // 3. Subtle Coastline Relief Inner Shadow
+        map.addLayer(
+          {
+            id: 'countries-inner-shadow',
+            type: 'line',
+            source: 'countries-source',
+            paint: {
+              'line-color':
+                currentTheme === 'dark' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(100, 116, 139, 0.25)',
+              'line-width': 2.5,
+              'line-blur': 1.8,
+              'line-opacity': 0.65,
+            },
+          },
+          beforeLayer
+        );
+
+        // 4. Subtle Country Borders
         map.addLayer(
           {
             id: 'countries-border',
@@ -161,13 +211,40 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
             paint: {
               'line-color':
                 currentTheme === 'dark'
-                  ? 'rgba(255, 255, 255, 0.12)'
-                  : 'rgba(100, 116, 139, 0.3)',
-              'line-width': 0.8,
+                  ? 'rgba(255, 255, 255, 0.18)'
+                  : 'rgba(100, 116, 139, 0.35)',
+              'line-width': 0.85,
             },
           },
           beforeLayer
         );
+      }
+
+      // Add planetary graticule lines (delicate geographic coordinate grid)
+      if (!map.getSource('graticule-source')) {
+        map.addSource('graticule-source', {
+          type: 'geojson',
+          data: buildGraticuleGeoJson(),
+        });
+
+        map.addLayer({
+          id: 'graticule-lines',
+          type: 'line',
+          source: 'graticule-source',
+          paint: {
+            'line-color':
+              currentTheme === 'dark'
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(71, 85, 105, 0.12)',
+            'line-width': [
+              'case',
+              ['boolean', ['get', 'isEquator'], false],
+              1.1,
+              0.6,
+            ],
+            'line-dasharray': [3, 4],
+          },
+        });
       }
 
       // Add stations GeoJSON source
