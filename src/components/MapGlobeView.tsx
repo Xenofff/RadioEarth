@@ -92,9 +92,13 @@ export const MapGlobeView = memo(
       isStyleLoadedRef.current = true;
 
       // Set native 3D globe projection
-      map.setProjection({
-        type: 'globe',
-      });
+      try {
+        map.setProjection({
+          type: 'globe',
+        });
+      } catch (err) {
+        console.error('[setupGlobeLayers] setProjection error:', err);
+      }
 
       // Configure sky & atmospheric halo
       try {
@@ -113,32 +117,37 @@ export const MapGlobeView = memo(
             'atmosphere-blend': 0.8,
           });
         }
-      } catch {
-        // Ignored if sky is not supported
+      } catch (err) {
+        console.warn('[setupGlobeLayers] setSky error:', err);
       }
 
       // Set background and ocean colors
-      if (map.getLayer('background')) {
-        map.setPaintProperty(
-          'background',
-          'background-color',
-          currentTheme === 'dark' ? 'rgb(47, 49, 54)' : '#E6ECF2'
-        );
-      }
-      if (map.getLayer('water')) {
-        map.setPaintProperty(
-          'water',
-          'fill-color',
-          currentTheme === 'dark' ? '#0B0E14' : '#D0DFEB'
-        );
+      try {
+        if (map.getLayer('background')) {
+          map.setPaintProperty(
+            'background',
+            'background-color',
+            currentTheme === 'dark' ? 'rgb(47, 49, 54)' : '#E6ECF2'
+          );
+        }
+        if (map.getLayer('water')) {
+          map.setPaintProperty(
+            'water',
+            'fill-color',
+            currentTheme === 'dark' ? '#0B0E14' : '#D0DFEB'
+          );
+        }
+      } catch (err) {
+        console.error('[setupGlobeLayers] paint property error:', err);
       }
 
       // Add explicit vector countries layer
-      if (!map.getSource('countries-source')) {
-        map.addSource('countries-source', {
-          type: 'geojson',
-          data: `${import.meta.env.BASE_URL}data/countries.geojson`,
-        });
+      try {
+        if (!map.getSource('countries-source')) {
+          map.addSource('countries-source', {
+            type: 'geojson',
+            data: `${import.meta.env.BASE_URL}data/countries.geojson`,
+          });
 
         const beforeLayer = map.getLayer('water') ? 'water' : undefined;
 
@@ -220,46 +229,57 @@ export const MapGlobeView = memo(
           beforeLayer
         );
       }
+      } catch (err) {
+        console.error('[setupGlobeLayers] countries-source/layer error:', err);
+      }
 
       // Add planetary graticule lines (delicate geographic coordinate grid)
-      if (!map.getSource('graticule-source')) {
-        map.addSource('graticule-source', {
-          type: 'geojson',
-          data: buildGraticuleGeoJson(),
-        });
+      try {
+        if (!map.getSource('graticule-source')) {
+          map.addSource('graticule-source', {
+            type: 'geojson',
+            data: buildGraticuleGeoJson(),
+          });
 
-        map.addLayer({
-          id: 'graticule-lines',
-          type: 'line',
-          source: 'graticule-source',
-          paint: {
-            'line-color':
-              currentTheme === 'dark'
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'rgba(71, 85, 105, 0.12)',
-            'line-width': [
-              'case',
-              ['boolean', ['get', 'isEquator'], false],
-              1.1,
-              0.6,
-            ],
-            'line-dasharray': [3, 4],
-          },
-        });
+          map.addLayer({
+            id: 'graticule-lines',
+            type: 'line',
+            source: 'graticule-source',
+            paint: {
+              'line-color':
+                currentTheme === 'dark'
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : 'rgba(71, 85, 105, 0.12)',
+              'line-width': [
+                'case',
+                ['boolean', ['get', 'isEquator'], false],
+                1.1,
+                0.6,
+              ],
+              'line-dasharray': [3, 4],
+            },
+          });
+        }
+      } catch (err) {
+        console.error('[setupGlobeLayers] graticule error:', err);
       }
 
       // Add stations GeoJSON source
-      if (!map.getSource('stations-source')) {
-        map.addSource('stations-source', {
-          type: 'geojson',
-          data: buildGeoJson(citiesRef.current),
-          cluster: false,
-        });
-      } else {
-        const src = map.getSource('stations-source') as GeoJSONSource | undefined;
-        if (src) {
-          src.setData(buildGeoJson(citiesRef.current));
+      try {
+        if (!map.getSource('stations-source')) {
+          map.addSource('stations-source', {
+            type: 'geojson',
+            data: buildGeoJson(citiesRef.current),
+            cluster: false,
+          });
+        } else {
+          const src = map.getSource('stations-source') as GeoJSONSource | undefined;
+          if (src) {
+            src.setData(buildGeoJson(citiesRef.current));
+          }
         }
+      } catch (err) {
+        console.error('[setupGlobeLayers] stations-source error:', err);
       }
 
       // Add dedicated source for selected city targeting reticle & pulse
@@ -466,10 +486,16 @@ export const MapGlobeView = memo(
       map.on('move', handleCameraUpdate);
 
       // Once style loads, activate Globe projection and configure layers
-      map.on('style.load', () => {
+      const onStyleReady = () => {
         setupGlobeLayers(map, themeRef.current);
         handleCameraUpdate();
-      });
+      };
+
+      map.on('style.load', onStyleReady);
+      map.on('load', onStyleReady);
+      if (map.isStyleLoaded()) {
+        onStyleReady();
+      }
 
       const cancelScan = () => {
         if (scanTimerRef.current) {
