@@ -7,13 +7,15 @@ import { fetchStations } from './services/radioApi';
 import { useRadioPlayer } from './hooks/useRadioPlayer';
 import { CameraCoordinates, CityGroup, Station } from './types/radio';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { useLanguage } from './i18n/LanguageContext';
 
 export function App() {
+  const { t } = useLanguage();
   const [cities, setCities] = useState<CityGroup[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityGroup | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<boolean>(false);
 
   const [cameraCoords, setCameraCoords] = useState<CameraCoordinates>({
     lat: 20,
@@ -39,13 +41,13 @@ export function App() {
   // Загрузка станций с сервера при старте
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    setApiError(null);
+    setApiError(false);
     try {
       const data = await fetchStations();
       setCities(data);
     } catch (err) {
       console.error('Failed to load stations data:', err);
-      setApiError('Failed to load live radio frequencies. Please check network connection.');
+      setApiError(true);
     } finally {
       setIsLoading(false);
     }
@@ -163,10 +165,10 @@ export function App() {
             <Loader2 className="w-7 h-7 text-[#16C683] animate-pulse absolute" />
           </div>
           <h1 className="text-base font-mono font-bold text-white tracking-widest uppercase">
-            SYNCHRONIZING ORBITAL FREQUENCIES
+            {t.loadingTitle}
           </h1>
           <p className="text-[11px] font-mono text-[#8B949E] mt-1.5">
-            LOADING VECTOR TOPOLOGY &bull; HTTPS STREAMS
+            {t.loadingSubtitle}
           </p>
         </div>
       )}
@@ -175,14 +177,14 @@ export function App() {
       {apiError && !isLoading && (
         <div className="absolute inset-0 z-50 bg-[#0B0E14]/90 flex items-center justify-center p-6">
           <div className="bg-[#12161F] border border-rose-500/30 rounded-2xl p-6 max-w-md text-center shadow-2xl">
-            <h2 className="text-base font-mono font-bold text-rose-400 mb-2">SIGNAL INTERRUPTED</h2>
-            <p className="text-xs text-[#8B949E] mb-5">{apiError}</p>
+            <h2 className="text-base font-mono font-bold text-rose-400 mb-2">{t.errorTitle}</h2>
+            <p className="text-xs text-[#8B949E] mb-5">{t.errorMessage}</p>
             <button
               onClick={loadData}
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#16C683] text-[#0B0E14] font-mono text-xs font-semibold rounded-lg hover:bg-[#2FE29C] transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              RETRY CONNECTION
+              {t.retryBtn}
             </button>
           </div>
         </div>

@@ -56,3 +56,88 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
+
+/* Celestial Space Background Animations */
+@keyframes star-twinkle-slow {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes star-twinkle-mid {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+@keyframes star-twinkle-fast {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+@keyframes meteor-1 {
+  0% {
+    transform: translate(0, 0) rotate(-35deg) scaleX(0);
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+    transform: translate(-40px, 30px) rotate(-35deg) scaleX(1);
+  }
+  6% {
+    transform: translate(-300px, 225px) rotate(-35deg) scaleX(1.3);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-300px, 225px) rotate(-35deg) scaleX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes meteor-2 {
+  0% {
+    transform: translate(0, 0) rotate(-42deg) scaleX(0);
+    opacity: 0;
+  }
+  3% {
+    opacity: 0.9;
+    transform: translate(-50px, 45px) rotate(-42deg) scaleX(1);
+  }
+  8% {
+    transform: translate(-360px, 320px) rotate(-42deg) scaleX(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-360px, 320px) rotate(-42deg) scaleX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes nebula-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.05); }
+}
+
+.animate-star-slow {
+  animation: star-twinkle-slow 5s ease-in-out infinite;
+}
+
+.animate-star-mid {
+  animation: star-twinkle-mid 3.2s ease-in-out infinite;
+}
+
+.animate-star-fast {
+  animation: star-twinkle-fast 1.9s ease-in-out infinite;
+}
+
+.animate-meteor-1 {
+  animation: meteor-1 14s linear infinite;
+  animation-delay: 2s;
+}
+
+.animate-meteor-2 {
+  animation: meteor-2 19s linear infinite;
+  animation-delay: 8s;
+}
+
+.animate-nebula {
+  animation: nebula-pulse 16s ease-in-out infinite;
+}

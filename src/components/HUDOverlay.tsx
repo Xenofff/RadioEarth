@@ -1,6 +1,7 @@
 import React from 'react';
 import { CameraCoordinates } from '../types/radio';
-import { Compass, Radio, Shuffle } from 'lucide-react';
+import { Compass, Radio, Shuffle, Languages } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HUDOverlayProps {
   cameraCoords: CameraCoordinates;
@@ -17,6 +18,8 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   onRandomTune,
   isLoading,
 }) => {
+  const { t, toggleLanguage } = useLanguage();
+
   const formatCoord = (val: number, posLabel: string, negLabel: string) => {
     const abs = Math.abs(val).toFixed(2);
     const dir = val >= 0 ? posLabel : negLabel;
@@ -40,29 +43,40 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 leading-none">
               <span className="text-xs font-mono font-bold tracking-widest text-[#16C683] uppercase">
-                RADIO EARTH
+                {t.brandTitle}
               </span>
               <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-[#16C683]/20 text-[#16C683] font-semibold leading-none">
-                LIVE
+                {t.brandLive}
               </span>
             </div>
             <span className="text-[9px] font-mono tracking-wider text-[#8B949E] uppercase mt-0.5 leading-none">
-              GLOBAL FREQUENCY TUNER
+              {t.brandSubtitle}
             </span>
           </div>
         </div>
 
-        {/* Telemetry & Quick Action Module */}
+        {/* Telemetry, Actions & Language Switcher Module */}
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* Language Switcher Button */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0B0E14]/85 hover:bg-[#16C683] text-[#16C683] hover:text-[#0B0E14] border border-[#16C683]/30 hover:border-[#16C683] rounded-lg text-xs font-mono font-bold transition-all duration-150 shadow-lg shadow-black/40 active:scale-95"
+            title={t.switchLangTitle}
+            aria-label={t.switchLangTitle}
+          >
+            <Languages className="w-3.5 h-3.5" />
+            <span>{t.currentLangLabel}</span>
+          </button>
+
           {/* Random Frequency Jump Button */}
           <button
             onClick={onRandomTune}
             disabled={isLoading || totalCities === 0}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#12161F]/90 hover:bg-[#16C683] text-[#16C683] hover:text-[#0B0E14] border border-[#16C683]/40 hover:border-[#16C683] rounded-lg text-xs font-mono font-medium transition-all duration-150 shadow-md active:scale-95 disabled:opacity-50"
-            title="Tune in to a random city"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#12161F]/90 hover:bg-[#16C683] text-[#16C683] hover:text-[#0B0E14] border border-[#16C683]/40 hover:border-[#16C683] rounded-lg text-xs font-mono font-medium transition-all duration-150 shadow-md active:scale-95 disabled:opacity-50"
+            title={t.randomTitle}
           >
             <Shuffle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">RANDOM</span>
+            <span className="hidden sm:inline">{t.randomBtn}</span>
           </button>
 
           {/* Telemetry Module */}
@@ -72,13 +86,13 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
             </div>
             <div className="flex flex-col">
               <div className="flex items-center justify-end gap-1.5 text-[10px] text-[#16C683] font-bold tracking-widest leading-none">
-                <span>TELEMETRY</span>
+                <span>{t.telemetry}</span>
                 <span className="text-[#8B949E] font-normal text-[9px]">
-                  ALT {cameraCoords.altitude.toFixed(2)}x
+                  {t.altPrefix} {cameraCoords.altitude.toFixed(2)}x
                 </span>
               </div>
               <div className="text-white text-[11px] font-mono leading-none mt-1">
-                {formatCoord(cameraCoords.lat, 'N', 'S')}, {formatCoord(cameraCoords.lng, 'E', 'W')}
+                {formatCoord(cameraCoords.lat, t.coordN, t.coordS)}, {formatCoord(cameraCoords.lng, t.coordE, t.coordW)}
               </div>
             </div>
           </div>
@@ -113,10 +127,10 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
       <footer className="pointer-events-none flex justify-between items-end pb-24 md:pb-24">
         <div className="text-[10px] font-mono text-[#8B949E]/70 flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#16C683]"></span>
-          VECTOR ORBIT &bull; {totalCities} CITIES &bull; {totalStations} STATIONS
+          {t.orbitTelemetry(totalCities, totalStations)}
         </div>
         <div className="text-[10px] font-mono text-[#8B949E]/70">
-          GEOJSON VECTOR CLUSTERING ONLINE
+          {t.engineOnline}
         </div>
       </footer>
     </div>

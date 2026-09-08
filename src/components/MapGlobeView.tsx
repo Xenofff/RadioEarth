@@ -2,6 +2,7 @@ import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 
 import { Map as MapLibreMap, GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CameraCoordinates, CityGroup, Station } from '../types/radio';
+import { SpaceBackground } from './SpaceBackground';
 
 export interface MapGlobeViewHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
@@ -107,13 +108,13 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
           type: 'globe',
         });
 
-        // Set space sky & atmospheric halo
+        // Set space sky & atmospheric halo with transparency to reveal cosmic background
         try {
           map.setSky({
-            'sky-color': '#0B0E14',
-            'sky-horizon-blend': 0.35,
-            'fog-color': '#07090D',
-            'fog-ground-blend': 0.35,
+            'sky-color': 'rgba(0, 0, 0, 0)',
+            'horizon-color': 'rgba(22, 198, 131, 0.15)',
+            'fog-color': 'rgba(0, 0, 0, 0)',
+            'atmosphere-blend': 0.75,
           });
         } catch {
           // Ignored if sky is not supported in current style version
@@ -602,20 +603,8 @@ export const MapGlobeView = forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
 
     return (
       <div className="relative w-full h-full bg-[#07090D] overflow-hidden select-none">
-        {/* Subtle Starry Space Background Texture behind the globe */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-40"
-          style={{
-            backgroundImage: `radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
-                              radial-gradient(1px 1px at 40px 70px, #16C683, rgba(0,0,0,0)),
-                              radial-gradient(1.5px 1.5px at 90px 40px, #ffffff, rgba(0,0,0,0)),
-                              radial-gradient(1px 1px at 160px 120px, #8B949E, rgba(0,0,0,0)),
-                              radial-gradient(1.5px 1.5px at 230px 190px, #ffffff, rgba(0,0,0,0)),
-                              radial-gradient(1px 1px at 290px 80px, #16C683, rgba(0,0,0,0))`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: '320px 320px',
-          }}
-        />
+        {/* Rich Multi-Layer Cosmic Starfield & Nebula Background */}
+        <SpaceBackground />
 
         {/* MapLibre Canvas Container */}
         <div ref={mapContainerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />

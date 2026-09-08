@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Play, Volume2, Search, MapPin, Tag } from 'lucide-react';
 import { CityGroup, PlaybackStatus, Station } from '../types/radio';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface CityStationsDrawerProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
   playbackStatus,
   onSelectStation,
 }) => {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter stations based on search query (name or tags)
@@ -51,14 +53,14 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
           </div>
           <h2 className="text-xl font-bold text-white mt-1">{city.cityName}</h2>
           <p className="text-xs text-[#8B949E] mt-0.5">
-            {city.stations.length} {city.stations.length === 1 ? 'station' : 'stations'} available
+            {t.stationsAvailable(city.stations.length)}
           </p>
         </div>
 
         <button
           onClick={onClose}
           className="p-2 rounded-lg bg-[#12161F] text-[#8B949E] hover:text-white hover:bg-[#16C683]/20 border border-white/10 transition-colors"
-          title="Close drawer"
+          title={t.closeDrawerTitle}
         >
           <X className="w-4 h-4" />
         </button>
@@ -70,7 +72,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
           <Search className="w-4 h-4 text-[#8B949E] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search stations or genres..."
+            placeholder={t.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-[#12161F] border border-white/10 focus:border-[#16C683] rounded-lg text-sm text-white placeholder-[#8B949E] outline-none transition-colors"
@@ -80,7 +82,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
               onClick={() => setSearchQuery('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#8B949E] hover:text-white"
             >
-              Clear
+              {t.clearBtn}
             </button>
           )}
         </div>
@@ -90,7 +92,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
       <div className="flex-1 overflow-y-auto divide-y divide-white/5 custom-scrollbar pb-24">
         {filteredStations.length === 0 ? (
           <div className="p-8 text-center text-[#8B949E] text-sm">
-            No radio stations found matching &quot;{searchQuery}&quot;
+            {t.noStationsFound(searchQuery)}
           </div>
         ) : (
           filteredStations.map((station) => {
