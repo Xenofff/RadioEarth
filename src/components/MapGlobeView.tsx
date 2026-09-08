@@ -137,7 +137,7 @@ export const MapGlobeView = memo(
       if (!map.getSource('countries-source')) {
         map.addSource('countries-source', {
           type: 'geojson',
-          data: '/data/countries.geojson',
+          data: `${import.meta.env.BASE_URL}data/countries.geojson`,
         });
 
         const beforeLayer = map.getLayer('water') ? 'water' : undefined;
