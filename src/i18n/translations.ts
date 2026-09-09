@@ -50,6 +50,29 @@ export interface Translations {
   errorTitle: string;
   errorMessage: string;
   retryBtn: string;
+
+  // Retention: Favorites
+  favoritesTitle: string;
+  favoritesBtn: string;
+  favoritesEmpty: string;
+  favoritesEmptySubtitle: string;
+  addToFavorites: string;
+  removeFromFavorites: string;
+  favoritesCount: (count: number) => string;
+
+  // Retention: Sharing
+  shareBtn: string;
+  shareCopied: string;
+  shareTitle: string;
+
+  // Retention: Global Search
+  searchGlobalBtn: string;
+  searchGlobalTitle: string;
+  searchPlaceholderGlobal: string;
+  searchShortcut: string;
+  searchNoResults: (query: string) => string;
+  quickGenres: string;
+  searchHint: string;
 }
 
 function pluralizeRu(n: number, one: string, few: string, many: string): string {
@@ -109,6 +132,30 @@ export const translations: Record<Language, Translations> = {
     errorTitle: 'СИГНАЛ ПРЕРВАН',
     errorMessage: 'Не удалось загрузить радиочастоты. Проверьте подключение к сети.',
     retryBtn: 'ПОВТОРИТЬ ПОДКЛЮЧЕНИЕ',
+
+    // Retention: Favorites
+    favoritesTitle: 'ИЗБРАННЫЕ СТАНЦИИ',
+    favoritesBtn: 'ИЗБРАННОЕ',
+    favoritesEmpty: 'В избранном пока пусто',
+    favoritesEmptySubtitle: 'Нажмите сердечко у любой радиостанции, чтобы сохранить её для быстрого доступа',
+    addToFavorites: 'Добавить в избранное',
+    removeFromFavorites: 'Удалить из избранного',
+    favoritesCount: (count: number) =>
+      `${count} ${pluralizeRu(count, 'сохраненная станция', 'сохраненные станции', 'сохраненных станций')}`,
+
+    // Retention: Sharing
+    shareBtn: 'ПОДЕЛИТЬСЯ',
+    shareCopied: 'Ссылка скопирована в буфер!',
+    shareTitle: 'Скопировать прямую ссылку на станцию',
+
+    // Retention: Global Search
+    searchGlobalBtn: 'ПОИСК',
+    searchGlobalTitle: 'Глобальный поиск (Cmd+K)',
+    searchPlaceholderGlobal: 'Поиск по станции, городу, стране или жанру...',
+    searchShortcut: 'Cmd+K',
+    searchNoResults: (query: string) => `Ничего не найдено по запросу «${query}»`,
+    quickGenres: 'Популярные жанры:',
+    searchHint: 'Нажмите Enter для перехода или Esc для закрытия',
   },
   en: {
     brandTitle: 'RADIO EARTH',
@@ -157,6 +204,30 @@ export const translations: Record<Language, Translations> = {
     errorTitle: 'SIGNAL INTERRUPTED',
     errorMessage: 'Failed to load live radio frequencies. Please check network connection.',
     retryBtn: 'RETRY CONNECTION',
+
+    // Retention: Favorites
+    favoritesTitle: 'FAVORITE STATIONS',
+    favoritesBtn: 'FAVORITES',
+    favoritesEmpty: 'No favorites saved yet',
+    favoritesEmptySubtitle: 'Click the heart icon on any station to save it for quick access',
+    addToFavorites: 'Add to favorites',
+    removeFromFavorites: 'Remove from favorites',
+    favoritesCount: (count: number) =>
+      `${count} ${count === 1 ? 'saved station' : 'saved stations'}`,
+
+    // Retention: Sharing
+    shareBtn: 'SHARE',
+    shareCopied: 'Link copied to clipboard!',
+    shareTitle: 'Copy direct share link to station',
+
+    // Retention: Global Search
+    searchGlobalBtn: 'SEARCH',
+    searchGlobalTitle: 'Global search (Cmd+K / Ctrl+K)',
+    searchPlaceholderGlobal: 'Search station, city, country, or genre...',
+    searchShortcut: 'Ctrl+K',
+    searchNoResults: (query: string) => `No results found matching "${query}"`,
+    quickGenres: 'Popular genres:',
+    searchHint: 'Press Enter to select or Esc to close',
   },
 };
 

@@ -1,8 +1,7 @@
-import React from 'react';
-import { CameraCoordinates } from '../types/radio';
-import { Compass, Radio, Shuffle, Languages, Sun, Moon } from 'lucide-react';
+import { Compass, Radio, Shuffle, Languages, Sun, Moon, Search, Heart } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
+import { CameraCoordinates } from '../types/radio';
 
 interface HUDOverlayProps {
   cameraCoords: CameraCoordinates;
@@ -10,6 +9,9 @@ interface HUDOverlayProps {
   totalCities: number;
   onRandomTune: () => void;
   isLoading: boolean;
+  onOpenSearch: () => void;
+  onOpenFavorites: () => void;
+  favoritesCount: number;
 }
 
 export const HUDOverlay: React.FC<HUDOverlayProps> = ({
@@ -18,6 +20,9 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   totalCities,
   onRandomTune,
   isLoading,
+  onOpenSearch,
+  onOpenFavorites,
+  favoritesCount,
 }) => {
   const { t, toggleLanguage } = useLanguage();
   const { toggleTheme, isDark } = useTheme();
@@ -120,6 +125,58 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
           >
             <Languages className="w-3.5 h-3.5" />
             <span>{t.currentLangLabel}</span>
+          </button>
+
+          {/* Global Search Button */}
+          <button
+            onClick={onOpenSearch}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-150 shadow-md active:scale-95 ${
+              isDark
+                ? 'bg-[#12161F]/90 hover:bg-[#16C683] text-[#16C683] hover:text-[#0B0E14] border border-[#16C683]/40 hover:border-[#16C683]'
+                : 'bg-white/85 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-slate-200/80 hover:border-emerald-600 shadow-slate-300/40'
+            }`}
+            title={t.searchGlobalTitle}
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t.searchGlobalBtn}</span>
+            <span
+              className={`hidden md:inline text-[9px] font-mono px-1 py-0.2 rounded border ${
+                isDark ? 'border-white/10 text-[#8B949E]' : 'border-slate-200 text-slate-500'
+              }`}
+            >
+              ⌘K
+            </span>
+          </button>
+
+          {/* Favorites Button */}
+          <button
+            onClick={onOpenFavorites}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-150 shadow-md active:scale-95 ${
+              favoritesCount > 0
+                ? isDark
+                  ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/40 hover:border-rose-500'
+                  : 'bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600'
+                : isDark
+                ? 'bg-[#12161F]/90 hover:bg-[#16C683] text-[#8B949E] hover:text-[#0B0E14] border border-white/10 hover:border-[#16C683]'
+                : 'bg-white/85 hover:bg-emerald-600 text-slate-600 hover:text-white border border-slate-200/80 hover:border-emerald-600'
+            }`}
+            title={t.favoritesTitle}
+          >
+            <Heart
+              className={`w-3.5 h-3.5 transition-colors ${
+                favoritesCount > 0 ? 'fill-rose-500 text-rose-500' : ''
+              }`}
+            />
+            <span className="hidden sm:inline">{t.favoritesBtn}</span>
+            {favoritesCount > 0 && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  isDark ? 'bg-rose-500/25 text-rose-300' : 'bg-rose-100 text-rose-700'
+                }`}
+              >
+                {favoritesCount}
+              </span>
+            )}
           </button>
 
           {/* Random Frequency Jump Button */}

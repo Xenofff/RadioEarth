@@ -34,3 +34,9 @@ export interface CameraCoordinates {
   lng: number;
   altitude: number;
 }
+
+export interface FavoriteStation extends Station {
+  cityId: string;
+  cityName: string;
+  addedAt: number;
+}

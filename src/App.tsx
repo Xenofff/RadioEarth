@@ -3,9 +3,12 @@ import { MapGlobeView, MapGlobeViewHandle } from './components/MapGlobeView';
 import { HUDOverlay } from './components/HUDOverlay';
 import { PlayerBottom } from './components/PlayerBottom';
 import { CityStationsDrawer } from './components/CityStationsDrawer';
+import { FavoritesDrawer } from './components/FavoritesDrawer';
+import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { fetchStations } from './services/radioApi';
 import { useRadioPlayer } from './hooks/useRadioPlayer';
-import { CameraCoordinates, CityGroup, Station } from './types/radio';
+import { useFavorites } from './hooks/useFavorites';
+import { CameraCoordinates, CityGroup, FavoriteStation, Station } from './types/radio';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 import { useTheme } from './theme/ThemeContext';
@@ -16,8 +19,14 @@ export function App() {
   const [cities, setCities] = useState<CityGroup[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityGroup | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [isFavoritesDrawerOpen, setIsFavoritesDrawerOpen] = useState<boolean>(false);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [shareCopied, setShareCopied] = useState<boolean>(false);
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [apiError, setApiError] = useState<boolean>(false);
+
+  const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavorites();
 
   const [cameraCoords, setCameraCoords] = useState<CameraCoordinates>({
     lat: 20,
@@ -39,6 +48,31 @@ export function App() {
     setVolume,
     toggleMute,
   } = useRadioPlayer();
+
+  const initialHandledRef = useRef<boolean>(false);
+
+  // Helper to parse station ID from URL hash or query params
+  const getStationIdFromUrl = useCallback((): string | null => {
+    const hash = window.location.hash;
+    if (hash) {
+      const match = hash.match(/#\/?station\/([^/?&]+)/i);
+      if (match && match[1]) {
+        return decodeURIComponent(match[1]);
+      }
+      const paramMatch = hash.match(/[#&]station=([^&]+)/i);
+      if (paramMatch && paramMatch[1]) {
+        return decodeURIComponent(paramMatch[1]);
+      }
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const stationParam = searchParams.get('station');
+    if (stationParam) {
+      return stationParam;
+    }
+
+    return null;
+  }, []);
 
   // Загрузка станций с сервера при старте
   const loadData = useCallback(async () => {
@@ -83,6 +117,154 @@ export function App() {
     [playStation]
   );
 
+  // Deep linking: Initial URL check when stations data is loaded
+  useEffect(() => {
+    if (cities.length === 0 || initialHandledRef.current) return;
+
+    const targetStationId = getStationIdFromUrl();
+    if (targetStationId) {
+      for (const city of cities) {
+        const found = city.stations.find((s) => s.id === targetStationId);
+        if (found) {
+          initialHandledRef.current = true;
+          // Slight delay to allow globe canvas initialization
+          setTimeout(() => {
+            handleSelectCity(city, found, true);
+          }, 600);
+          return;
+        }
+      }
+    }
+  }, [cities, getStationIdFromUrl, handleSelectCity]);
+
+  // Deep linking: React to browser back/forward or manual hash change
+  useEffect(() => {
+    const handleHashChange = () => {
+      const targetStationId = getStationIdFromUrl();
+      if (!targetStationId || cities.length === 0) return;
+      if (currentStation?.id === targetStationId) return;
+
+      for (const city of cities) {
+        const found = city.stations.find((s) => s.id === targetStationId);
+        if (found) {
+          handleSelectCity(city, found, true);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [cities, currentStation, getStationIdFromUrl, handleSelectCity]);
+
+  // Update URL hash when station changes
+  useEffect(() => {
+    if (!currentStation) return;
+    const expectedHash = `#/station/${encodeURIComponent(currentStation.id)}`;
+    if (window.location.hash !== expectedHash) {
+      window.history.replaceState(null, '', expectedHash);
+    }
+  }, [currentStation]);
+
+  // Global keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // One-click share link generator
+  const handleShareStation = useCallback(() => {
+    if (!currentStation) return;
+    const url = `${window.location.origin}${window.location.pathname}#/station/${encodeURIComponent(
+      currentStation.id
+    )}`;
+
+    const copyToClipboard = async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = url;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        setShareCopied(true);
+        if (shareTimerRef.current) clearTimeout(shareTimerRef.current);
+        shareTimerRef.current = setTimeout(() => {
+          setShareCopied(false);
+        }, 2500);
+      } catch (err) {
+        console.warn('Could not copy link to clipboard:', err);
+      }
+    };
+
+    copyToClipboard();
+  }, [currentStation]);
+
+  // Selection from global search modal
+  const handleSelectSearchStation = useCallback(
+    (city: CityGroup, station: Station) => {
+      setIsSearchOpen(false);
+      handleSelectCity(city, station, true);
+    },
+    [handleSelectCity]
+  );
+
+  // Selection from favorites drawer with immediate fly-to
+  const handleSelectFavorite = useCallback(
+    (fav: FavoriteStation) => {
+      setIsFavoritesDrawerOpen(false);
+
+      let targetCity = cities.find((c) => c.id === fav.cityId);
+      if (!targetCity) {
+        targetCity = cities.find(
+          (c) => Math.abs(c.lat - fav.lat) < 0.05 && Math.abs(c.lng - fav.lng) < 0.05
+        );
+      }
+      if (!targetCity) {
+        targetCity = {
+          id: fav.cityId || `fav-${fav.id}`,
+          cityName: fav.cityName || fav.country,
+          country: fav.country,
+          countryCode: fav.countryCode || '',
+          lat: fav.lat,
+          lng: fav.lng,
+          stations: [fav],
+        };
+      }
+      handleSelectCity(targetCity, fav, true);
+    },
+    [cities, handleSelectCity]
+  );
+
+  // Toggle favorite for currently playing station
+  const handleTogglePlayerFavorite = useCallback(() => {
+    if (currentStation) {
+      toggleFavorite(currentStation, selectedCity);
+    }
+  }, [currentStation, selectedCity, toggleFavorite]);
+
+  // Toggle favorite from city drawer
+  const handleToggleCityFavorite = useCallback(
+    (station: Station) => {
+      toggleFavorite(station, selectedCity);
+    },
+    [selectedCity, toggleFavorite]
+  );
+
   // Случайный перелет по миру
   const handleRandomTune = useCallback(() => {
     if (cities.length === 0) return;
@@ -123,13 +305,16 @@ export function App() {
         onCameraChange={setCameraCoords}
       />
 
-      {/* Компактный минималистичный HUD оверлей с прицелом и телеметрией */}
+      {/* Компактный минималистичный HUD оверлей с прицелом, поиском и избранным */}
       <HUDOverlay
         cameraCoords={cameraCoords}
         totalStations={totalStations}
         totalCities={cities.length}
         onRandomTune={handleRandomTune}
         isLoading={isLoading}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenFavorites={() => setIsFavoritesDrawerOpen(true)}
+        favoritesCount={favorites.length}
       />
 
       {/* Выдвижная левая панель со станциями города */}
@@ -140,6 +325,28 @@ export function App() {
         currentStation={currentStation}
         playbackStatus={playbackStatus}
         onSelectStation={(station) => playStation(station)}
+        isFavorite={(stationId) => isFavorite(stationId)}
+        onToggleFavorite={handleToggleCityFavorite}
+      />
+
+      {/* Выдвижная панель избранных радиостанций */}
+      <FavoritesDrawer
+        isOpen={isFavoritesDrawerOpen}
+        onClose={() => setIsFavoritesDrawerOpen(false)}
+        favorites={favorites}
+        currentStation={currentStation}
+        playbackStatus={playbackStatus}
+        onSelectFavorite={handleSelectFavorite}
+        onRemoveFavorite={removeFavorite}
+      />
+
+      {/* Модальное окно глобального поиска (Cmd+K / Ctrl+K) */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        cities={cities}
+        onSelectStation={handleSelectSearchStation}
+        isFavorite={(stationId) => isFavorite(stationId)}
       />
 
       {/* Модульная нижняя панель плеера */}
@@ -158,6 +365,10 @@ export function App() {
         onNextStation={handleNextStation}
         hasMultipleStations={Boolean(selectedCity && selectedCity.stations.length > 1)}
         onOpenDrawer={() => setIsDrawerOpen(true)}
+        isFavorite={Boolean(currentStation && isFavorite(currentStation.id))}
+        onToggleFavorite={handleTogglePlayerFavorite}
+        onShare={handleShareStation}
+        shareCopied={shareCopied}
       />
 
       {/* Экран загрузки */}

@@ -1,48 +1,44 @@
 import React, { useState, useMemo } from 'react';
-import { X, Play, Volume2, Search, MapPin, Tag, Heart } from 'lucide-react';
-import { CityGroup, PlaybackStatus, Station } from '../types/radio';
+import { X, Play, Volume2, Search, MapPin, Heart, Trash2 } from 'lucide-react';
+import { FavoriteStation, PlaybackStatus, Station } from '../types/radio';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
 
-interface CityStationsDrawerProps {
+interface FavoritesDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  city: CityGroup | null;
+  favorites: FavoriteStation[];
   currentStation: Station | null;
   playbackStatus: PlaybackStatus;
-  onSelectStation: (station: Station) => void;
-  isFavorite: (stationId: string) => boolean;
-  onToggleFavorite: (station: Station) => void;
+  onSelectFavorite: (station: FavoriteStation) => void;
+  onRemoveFavorite: (stationId: string) => void;
 }
 
-export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
+export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
   isOpen,
   onClose,
-  city,
+  favorites,
   currentStation,
   playbackStatus,
-  onSelectStation,
-  isFavorite,
-  onToggleFavorite,
+  onSelectFavorite,
+  onRemoveFavorite,
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter stations based on search query (name or tags)
-  const filteredStations = useMemo(() => {
-    if (!city) return [];
-    if (!searchQuery.trim()) return city.stations;
-
-    const query = searchQuery.toLowerCase().trim();
-    return city.stations.filter(
+  // Filter favorites based on search
+  const filteredFavorites = useMemo(() => {
+    if (!searchQuery.trim()) return favorites;
+    const q = searchQuery.toLowerCase().trim();
+    return favorites.filter(
       (station) =>
-        station.name.toLowerCase().includes(query) ||
-        station.tags.some((tag) => tag.toLowerCase().includes(query))
+        station.name.toLowerCase().includes(q) ||
+        station.cityName.toLowerCase().includes(q) ||
+        station.country.toLowerCase().includes(q) ||
+        station.tags.some((t) => t.toLowerCase().includes(q))
     );
-  }, [city, searchQuery]);
-
-  if (!city) return null;
+  }, [favorites, searchQuery]);
 
   return (
     <aside
@@ -54,7 +50,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/40'
       }`}
     >
-      {/* Header */}
+      {/* Drawer Header */}
       <div
         className={`p-5 border-b flex items-start justify-between gap-3 transition-colors ${
           isDark ? 'border-white/5 bg-[#12161F]/40' : 'border-slate-200 bg-slate-50/70'
@@ -63,25 +59,25 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
         <div>
           <div
             className={`flex items-center gap-1.5 text-xs font-mono ${
-              isDark ? 'text-[#16C683]' : 'text-emerald-700'
+              isDark ? 'text-rose-400' : 'text-rose-600'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="uppercase tracking-wider">{city.country}</span>
+            <Heart className="w-3.5 h-3.5 fill-current" />
+            <span className="uppercase tracking-wider">{t.favoritesBtn}</span>
           </div>
           <h2
-            className={`text-xl font-bold mt-1 ${
+            className={`text-xl font-bold mt-1 flex items-center gap-2 ${
               isDark ? 'text-white' : 'text-slate-900'
             }`}
           >
-            {city.cityName}
+            {t.favoritesTitle}
           </h2>
           <p
             className={`text-xs mt-0.5 ${
               isDark ? 'text-[#8B949E]' : 'text-slate-500'
             }`}
           >
-            {t.stationsAvailable(city.stations.length)}
+            {t.favoritesCount(favorites.length)}
           </p>
         </div>
 
@@ -98,49 +94,75 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div
-        className={`p-4 border-b ${
-          isDark ? 'border-white/5' : 'border-slate-200'
-        }`}
-      >
-        <div className="relative">
-          <Search
-            className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
-              isDark ? 'text-[#8B949E]' : 'text-slate-400'
-            }`}
-          />
-          <input
-            type="text"
-            placeholder={t.searchPlaceholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-9 pr-4 py-2 border rounded-lg text-sm outline-none transition-colors ${
-              isDark
-                ? 'bg-[#12161F] border-white/10 focus:border-[#16C683] text-white placeholder-[#8B949E]'
-                : 'bg-slate-100 border-slate-200 focus:border-emerald-600 text-slate-900 placeholder-slate-400'
-            }`}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs ${
-                isDark ? 'text-[#8B949E] hover:text-white' : 'text-slate-500 hover:text-slate-900'
+      {/* Search Bar (if at least 4 favorites) */}
+      {favorites.length > 3 && (
+        <div
+          className={`p-4 border-b ${
+            isDark ? 'border-white/5' : 'border-slate-200'
+          }`}
+        >
+          <div className="relative">
+            <Search
+              className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
+                isDark ? 'text-[#8B949E]' : 'text-slate-400'
               }`}
-            >
-              {t.clearBtn}
-            </button>
-          )}
+            />
+            <input
+              type="text"
+              placeholder={t.searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full pl-9 pr-4 py-2 border rounded-lg text-sm outline-none transition-colors ${
+                isDark
+                  ? 'bg-[#12161F] border-white/10 focus:border-[#16C683] text-white placeholder-[#8B949E]'
+                  : 'bg-slate-100 border-slate-200 focus:border-emerald-600 text-slate-900 placeholder-slate-400'
+              }`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs ${
+                  isDark ? 'text-[#8B949E] hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {t.clearBtn}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Stations List */}
+      {/* Favorites List */}
       <div
         className={`flex-1 overflow-y-auto divide-y custom-scrollbar pb-24 ${
           isDark ? 'divide-white/5' : 'divide-slate-200/60'
         }`}
       >
-        {filteredStations.length === 0 ? (
+        {favorites.length === 0 ? (
+          <div className="p-8 text-center flex flex-col items-center justify-center h-64">
+            <div
+              className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${
+                isDark ? 'bg-rose-500/10 text-rose-400/60' : 'bg-rose-50 text-rose-500/70'
+              }`}
+            >
+              <Heart className="w-7 h-7 stroke-[1.5]" />
+            </div>
+            <h3
+              className={`text-sm font-semibold font-mono ${
+                isDark ? 'text-white' : 'text-slate-800'
+              }`}
+            >
+              {t.favoritesEmpty}
+            </h3>
+            <p
+              className={`text-xs mt-1.5 max-w-[240px] leading-relaxed ${
+                isDark ? 'text-[#8B949E]' : 'text-slate-500'
+              }`}
+            >
+              {t.favoritesEmptySubtitle}
+            </p>
+          </div>
+        ) : filteredFavorites.length === 0 ? (
           <div
             className={`p-8 text-center text-sm ${
               isDark ? 'text-[#8B949E]' : 'text-slate-500'
@@ -149,17 +171,16 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
             {t.noStationsFound(searchQuery)}
           </div>
         ) : (
-          filteredStations.map((station) => {
+          filteredFavorites.map((station) => {
             const isCurrent = currentStation?.id === station.id;
             const isPlaying = isCurrent && playbackStatus === 'playing';
             const isLoading = isCurrent && playbackStatus === 'loading';
-            const isFav = isFavorite(station.id);
 
             return (
               <div
                 key={station.id}
-                onClick={() => onSelectStation(station)}
-                className={`p-4 flex items-center gap-3 cursor-pointer transition-all duration-150 ${
+                onClick={() => onSelectFavorite(station)}
+                className={`p-4 flex items-center gap-3 cursor-pointer group transition-all duration-150 ${
                   isCurrent
                     ? isDark
                       ? 'bg-[#16C683]/10 border-l-4 border-l-[#16C683]'
@@ -169,7 +190,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
                     : 'hover:bg-slate-50 border-l-4 border-l-transparent'
                 }`}
               >
-                {/* Station Icon or Playing state */}
+                {/* Station Icon / Play Status */}
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all ${
                     isCurrent
@@ -210,78 +231,54 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
                     >
                       {station.name}
                     </h3>
+                  </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFavorite(station);
-                      }}
-                      className={`p-1.5 rounded-lg transition-all active:scale-125 flex-shrink-0 ${
-                        isFav
-                          ? 'text-rose-500 hover:text-rose-400'
-                          : isDark
-                          ? 'text-[#8B949E]/50 hover:text-rose-400 hover:bg-white/5'
-                          : 'text-slate-300 hover:text-rose-500 hover:bg-slate-100'
-                      }`}
-                      title={isFav ? t.removeFromFavorites : t.addToFavorites}
-                    >
-                      <Heart
-                        className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                          isFav ? 'fill-rose-500 text-rose-500 scale-110' : ''
-                        }`}
-                      />
-                    </button>
+                  <div
+                    className={`flex items-center gap-1.5 text-xs truncate mt-0.5 ${
+                      isDark ? 'text-[#8B949E]' : 'text-slate-500'
+                    }`}
+                  >
+                    <MapPin className="w-3 h-3 flex-shrink-0 opacity-70" />
+                    <span className="truncate">
+                      {station.cityName}, {station.country}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2 mt-1">
                     <span
-                      className={`text-[10px] font-mono uppercase ${
-                        isDark ? 'text-[#8B949E]' : 'text-slate-500'
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase border ${
+                        isDark
+                          ? 'bg-[#12161F] text-[#8B949E] border-white/5'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
                       }`}
                     >
-                      {station.codec || 'MP3'} {station.bitrate ? `${station.bitrate} kbps` : ''}
+                      {station.codec || 'MP3'} {station.bitrate ? `${station.bitrate}k` : ''}
                     </span>
-
-                    {station.votes > 0 && (
-                      <span
-                        className={`text-[10px] font-mono ${
-                          isDark ? 'text-[#8B949E]' : 'text-slate-500'
-                        }`}
-                      >
-                        ★ {station.votes}
-                      </span>
-                    )}
                   </div>
-
-                  {station.tags.length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {station.tags.slice(0, 3).map((tag, i) => (
-                        <span
-                          key={i}
-                          className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded ${
-                            isDark
-                              ? 'bg-white/5 text-[#8B949E]'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          <Tag
-                            className={`w-2.5 h-2.5 ${
-                              isDark ? 'text-[#16C683]/60' : 'text-emerald-600'
-                            }`}
-                          />
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
+
+                {/* Remove from favorites button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFavorite(station.id);
+                  }}
+                  className={`p-2 rounded-lg opacity-60 hover:opacity-100 transition-all ${
+                    isDark
+                      ? 'text-rose-400 hover:bg-rose-500/20 hover:text-rose-300'
+                      : 'text-rose-500 hover:bg-rose-50 hover:text-rose-700'
+                  }`}
+                  title={t.removeFromFavorites}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             );
           })
         )}
       </div>
 
-      {/* Drawer Footer Info */}
+      {/* Footer Info */}
       <div
         className={`p-3 border-t text-center text-[11px] font-mono transition-colors ${
           isDark
@@ -289,7 +286,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
             : 'border-slate-200 bg-slate-50 text-slate-500'
         }`}
       >
-        GEO: {city.lat.toFixed(4)}, {city.lng.toFixed(4)}
+        RADIO EARTH • FAVORITES CACHE
       </div>
     </aside>
   );

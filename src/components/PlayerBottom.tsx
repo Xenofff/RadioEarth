@@ -10,6 +10,9 @@ import {
   AlertCircle,
   Loader2,
   ListMusic,
+  Heart,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { PlaybackStatus, Station } from '../types/radio';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -30,6 +33,10 @@ interface PlayerBottomProps {
   onNextStation: () => void;
   hasMultipleStations: boolean;
   onOpenDrawer: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onShare: () => void;
+  shareCopied: boolean;
 }
 
 export const PlayerBottom: React.FC<PlayerBottomProps> = ({
@@ -47,6 +54,10 @@ export const PlayerBottom: React.FC<PlayerBottomProps> = ({
   onNextStation,
   hasMultipleStations,
   onOpenDrawer,
+  isFavorite,
+  onToggleFavorite,
+  onShare,
+  shareCopied,
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
@@ -200,6 +211,67 @@ export const PlayerBottom: React.FC<PlayerBottomProps> = ({
                 >
                   {station.codec} {station.bitrate ? `${station.bitrate}k` : ''}
                 </span>
+              )}
+            </div>
+          </div>
+
+          {/* Actions: Favorite & Share */}
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+              className={`p-1.5 rounded-lg transition-all active:scale-125 ${
+                isFavorite
+                  ? 'text-rose-500 hover:text-rose-400'
+                  : isDark
+                  ? 'text-[#8B949E] hover:text-rose-400 hover:bg-white/5'
+                  : 'text-slate-400 hover:text-rose-500 hover:bg-slate-100'
+              }`}
+              title={isFavorite ? t.removeFromFavorites : t.addToFavorites}
+            >
+              <Heart
+                className={`w-4 h-4 transition-transform duration-150 ${
+                  isFavorite ? 'fill-rose-500 text-rose-500 scale-110' : ''
+                }`}
+              />
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare();
+                }}
+                className={`p-1.5 rounded-lg transition-all active:scale-95 ${
+                  shareCopied
+                    ? isDark
+                      ? 'bg-[#16C683]/20 text-[#16C683]'
+                      : 'bg-emerald-100 text-emerald-700'
+                    : isDark
+                    ? 'text-[#8B949E] hover:text-[#16C683] hover:bg-white/5'
+                    : 'text-slate-400 hover:text-emerald-600 hover:bg-slate-100'
+                }`}
+                title={t.shareTitle}
+              >
+                {shareCopied ? (
+                  <Check className="w-4 h-4 text-emerald-500 stroke-[2.5]" />
+                ) : (
+                  <Share2 className="w-4 h-4" />
+                )}
+              </button>
+
+              {shareCopied && (
+                <div
+                  className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 rounded-md text-[10px] font-mono whitespace-nowrap shadow-xl z-50 pointer-events-none ${
+                    isDark
+                      ? 'bg-[#16C683] text-[#0B0E14] font-bold shadow-[#16C683]/30'
+                      : 'bg-slate-900 text-white font-semibold'
+                  }`}
+                >
+                  {t.shareCopied}
+                </div>
               )}
             </div>
           </div>
