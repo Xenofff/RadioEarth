@@ -8,6 +8,7 @@ import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { fetchStations } from './services/radioApi';
 import { useRadioPlayer } from './hooks/useRadioPlayer';
 import { useFavorites } from './hooks/useFavorites';
+import { useMediaSession } from './hooks/useMediaSession';
 import { CameraCoordinates, CityGroup, FavoriteStation, Station } from './types/radio';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
@@ -166,18 +167,30 @@ export function App() {
     }
   }, [currentStation]);
 
-  // Global keyboard shortcut: Cmd+K / Ctrl+K
+  // Global keyboard shortcuts: Cmd+K / Ctrl+K (Search), Space (Play/Pause)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isTyping =
+        activeEl?.tagName === 'INPUT' ||
+        activeEl?.tagName === 'TEXTAREA' ||
+        activeEl?.isContentEditable;
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsSearchOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.code === 'Space' && !isTyping) {
+        e.preventDefault();
+        togglePlay();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [togglePlay]);
 
   // One-click share link generator
   const handleShareStation = useCallback(() => {
@@ -287,6 +300,16 @@ export function App() {
       (currentIndex - 1 + selectedCity.stations.length) % selectedCity.stations.length;
     playStation(selectedCity.stations[prevIndex]);
   }, [selectedCity, currentStation, playStation]);
+
+  // OS MediaSession API integration (Lock screen, Control Center, headphone buttons, media keys)
+  useMediaSession({
+    station: currentStation,
+    city: selectedCity,
+    isPlaying,
+    onTogglePlay: togglePlay,
+    onPrevStation: selectedCity && selectedCity.stations.length > 1 ? handlePrevStation : undefined,
+    onNextStation: selectedCity && selectedCity.stations.length > 1 ? handleNextStation : undefined,
+  });
 
   const totalStations = cities.reduce((acc, c) => acc + c.stations.length, 0);
 
