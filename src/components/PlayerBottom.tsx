@@ -25,6 +25,7 @@ interface PlayerBottomProps {
   volume: number;
   isMuted: boolean;
   errorMessage: string | null;
+  cityName?: string;
   stationsInCityCount?: number;
   onTogglePlay: () => void;
   onSetVolume: (vol: number) => void;
@@ -46,6 +47,7 @@ export const PlayerBottom: React.FC<PlayerBottomProps> = ({
   volume,
   isMuted,
   errorMessage,
+  cityName,
   stationsInCityCount,
   onTogglePlay,
   onSetVolume,
@@ -195,7 +197,7 @@ export const PlayerBottom: React.FC<PlayerBottomProps> = ({
                 isDark ? 'text-[#8B949E]' : 'text-slate-500'
               }`}
             >
-              {station.state ? `${station.state}, ` : ''}
+              {cityName ? `${cityName}, ` : station.state ? `${station.state}, ` : ''}
               {station.country}
             </div>
 

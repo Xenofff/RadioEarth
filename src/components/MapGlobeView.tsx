@@ -6,6 +6,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { SpaceBackground } from './SpaceBackground';
 import { LightBackground } from './LightBackground';
 import { buildGraticuleGeoJson } from '../utils/mapTextures';
+import { buildTerminatorGeoJson } from '../utils/solarTerminator';
+import { radioStaticEngine } from '../utils/radioStatic';
 
 const DARK_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const LIGHT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -19,11 +21,13 @@ interface MapGlobeViewProps {
   selectedCity: CityGroup | null;
   onSelectCity: (city: CityGroup, targetStation?: Station, shouldFlyTo?: boolean) => void;
   onCameraChange: (coords: CameraCoordinates) => void;
+  volume?: number;
+  isMuted?: boolean;
 }
 
 export const MapGlobeView = memo(
   forwardRef<MapGlobeViewHandle, MapGlobeViewProps>(
-    ({ cities, selectedCity, onSelectCity, onCameraChange }, ref) => {
+    ({ cities, selectedCity, onSelectCity, onCameraChange, volume, isMuted }, ref) => {
     const { theme, isDark } = useTheme();
     const themeRef = useRef(theme);
     themeRef.current = theme;
@@ -47,6 +51,32 @@ export const MapGlobeView = memo(
 
     const onSelectCityRef = useRef(onSelectCity);
     onSelectCityRef.current = onSelectCity;
+
+    // Sync volume and mute state with radio static engine
+    useEffect(() => {
+      if (volume !== undefined) {
+        radioStaticEngine.setVolume(volume);
+      }
+    }, [volume]);
+
+    useEffect(() => {
+      if (isMuted !== undefined) {
+        radioStaticEngine.setMuted(isMuted);
+      }
+    }, [isMuted]);
+
+    // Periodically update Solar Terminator (every 60 seconds)
+    useEffect(() => {
+      const interval = setInterval(() => {
+        if (mapRef.current && isStyleLoadedRef.current) {
+          const src = mapRef.current.getSource('terminator-source') as GeoJSONSource | undefined;
+          if (src) {
+            src.setData(buildTerminatorGeoJson());
+          }
+        }
+      }, 60000);
+      return () => clearInterval(interval);
+    }, []);
 
     // Imperative flyTo method for camera positioning
     useImperativeHandle(ref, () => ({
@@ -280,6 +310,50 @@ export const MapGlobeView = memo(
         }
       } catch (err) {
         console.error('[setupGlobeLayers] stations-source error:', err);
+      }
+
+      // Add Solar Terminator (Real-time day/night dividing line & nocturnal shadow)
+      try {
+        const terminatorData = buildTerminatorGeoJson();
+        if (!map.getSource('terminator-source')) {
+          map.addSource('terminator-source', {
+            type: 'geojson',
+            data: terminatorData,
+          });
+
+          // 1. Nocturnal shadow fill polygon
+          map.addLayer({
+            id: 'terminator-night-shadow',
+            type: 'fill',
+            source: 'terminator-source',
+            filter: ['==', '$type', 'Polygon'],
+            paint: {
+              'fill-color': currentTheme === 'dark' ? '#010307' : '#0B132B',
+              'fill-opacity': currentTheme === 'dark' ? 0.4 : 0.25,
+            },
+          });
+
+          // 2. Glowing sunset/sunrise twilight line
+          map.addLayer({
+            id: 'terminator-twilight-line',
+            type: 'line',
+            source: 'terminator-source',
+            filter: ['==', '$type', 'LineString'],
+            paint: {
+              'line-color': '#F59E0B',
+              'line-width': 2.2,
+              'line-blur': 3.5,
+              'line-opacity': currentTheme === 'dark' ? 0.65 : 0.45,
+            },
+          });
+        } else {
+          const src = map.getSource('terminator-source') as GeoJSONSource | undefined;
+          if (src) {
+            src.setData(terminatorData);
+          }
+        }
+      } catch (err) {
+        console.error('[setupGlobeLayers] terminator error:', err);
       }
 
       // Add dedicated source for selected city targeting reticle & pulse
@@ -572,6 +646,7 @@ export const MapGlobeView = memo(
             essential: true,
           });
 
+          radioStaticEngine.stopNoise(300);
           onSelectCityRef.current(chosen, chosenStation, false);
           return;
         }
@@ -598,6 +673,7 @@ export const MapGlobeView = memo(
             essential: true,
           });
 
+          radioStaticEngine.stopNoise(350);
           onSelectCityRef.current(chosen, chosenStation, false);
           return;
         }
@@ -618,6 +694,7 @@ export const MapGlobeView = memo(
         cancelScan();
         if (e.originalEvent) {
           isUserInteractingRef.current = true;
+          radioStaticEngine.startNoise();
         }
       });
 
@@ -625,6 +702,7 @@ export const MapGlobeView = memo(
         handleCameraUpdate();
         if (isProgrammaticMoveRef.current) return;
         if (isUserInteractingRef.current) {
+          radioStaticEngine.startNoise();
           cancelScan();
           // If mouse is released and map is coasting on inertia, debounce scan
           if (!isMouseDownRef.current) {
@@ -637,6 +715,7 @@ export const MapGlobeView = memo(
         cancelScan();
         isUserInteractingRef.current = true;
         isMouseDownRef.current = true;
+        radioStaticEngine.startNoise();
       });
 
       map.on('dragend', () => {
@@ -647,10 +726,12 @@ export const MapGlobeView = memo(
       map.on('moveend', () => {
         if (isProgrammaticMoveRef.current) {
           isProgrammaticMoveRef.current = false;
+          radioStaticEngine.stopNoise(300);
           return;
         }
         if (isUserInteractingRef.current) {
           isUserInteractingRef.current = false;
+          radioStaticEngine.stopNoise(450);
           scheduleScan();
         }
       });
@@ -658,6 +739,7 @@ export const MapGlobeView = memo(
       const handleCanvasMouseDown = () => {
         isMouseDownRef.current = true;
         cancelScan();
+        radioStaticEngine.ensureContextRunning();
       };
 
       const handleCanvasMouseUp = () => {
@@ -680,6 +762,7 @@ export const MapGlobeView = memo(
         });
         if (!features.length) return;
 
+        radioStaticEngine.stopNoise(300);
         const rawData = features[0].properties?.cityData;
         if (rawData) {
           try {

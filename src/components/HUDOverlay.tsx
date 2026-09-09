@@ -1,7 +1,8 @@
-import { Compass, Radio, Shuffle, Languages, Sun, Moon, Search, Heart } from 'lucide-react';
+import { Compass, Radio, Shuffle, Languages, Sun, Moon, Search, Heart, Sunrise, Sunset } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../theme/ThemeContext';
-import { CameraCoordinates } from '../types/radio';
+import { CameraCoordinates, CityGroup, Station } from '../types/radio';
+import { useCityLocalTime } from '../utils/localTime';
 
 interface HUDOverlayProps {
   cameraCoords: CameraCoordinates;
@@ -12,6 +13,8 @@ interface HUDOverlayProps {
   onOpenSearch: () => void;
   onOpenFavorites: () => void;
   favoritesCount: number;
+  selectedCity?: CityGroup | null;
+  selectedStation?: Station | null;
 }
 
 export const HUDOverlay: React.FC<HUDOverlayProps> = ({
@@ -23,9 +26,16 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   onOpenSearch,
   onOpenFavorites,
   favoritesCount,
+  selectedCity,
+  selectedStation,
 }) => {
   const { t, toggleLanguage } = useLanguage();
   const { toggleTheme, isDark } = useTheme();
+
+  const targetLat = selectedCity?.lat ?? selectedStation?.lat;
+  const targetLng = selectedCity?.lng ?? selectedStation?.lng;
+  const targetCountry = selectedCity?.countryCode ?? selectedStation?.countryCode;
+  const localTime = useCityLocalTime(targetLat, targetLng, targetCountry);
 
   const formatCoord = (val: number, posLabel: string, negLabel: string) => {
     const abs = Math.abs(val).toFixed(2);
@@ -203,11 +213,31 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
             }`}
           >
             <div
-              className={`p-1 rounded ${
-                isDark ? 'bg-[#16C683]/10 text-[#16C683]' : 'bg-emerald-50 text-emerald-600'
+              className={`p-1 rounded flex items-center justify-center transition-colors ${
+                localTime
+                  ? localTime.periodKey === 'night'
+                    ? isDark ? 'bg-indigo-950/60 text-indigo-400' : 'bg-indigo-50 text-indigo-600'
+                    : localTime.periodKey === 'morning'
+                    ? isDark ? 'bg-amber-950/60 text-amber-400' : 'bg-amber-50 text-amber-600'
+                    : localTime.periodKey === 'day'
+                    ? isDark ? 'bg-sky-950/60 text-sky-400' : 'bg-sky-50 text-sky-600'
+                    : isDark ? 'bg-orange-950/60 text-orange-400' : 'bg-orange-50 text-orange-600'
+                  : isDark ? 'bg-[#16C683]/10 text-[#16C683]' : 'bg-emerald-50 text-emerald-600'
               }`}
             >
-              <Compass className="w-3.5 h-3.5" />
+              {localTime ? (
+                localTime.periodKey === 'night' ? (
+                  <Moon className="w-3.5 h-3.5" />
+                ) : localTime.periodKey === 'morning' ? (
+                  <Sunrise className="w-3.5 h-3.5" />
+                ) : localTime.periodKey === 'day' ? (
+                  <Sun className="w-3.5 h-3.5" />
+                ) : (
+                  <Sunset className="w-3.5 h-3.5" />
+                )
+              ) : (
+                <Compass className="w-3.5 h-3.5" />
+              )}
             </div>
             <div className="flex flex-col">
               <div
@@ -224,13 +254,39 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
                   {t.altPrefix} {cameraCoords.altitude.toFixed(2)}x
                 </span>
               </div>
-              <div
-                className={`text-[11px] font-mono leading-none mt-1 ${
-                  isDark ? 'text-white' : 'text-slate-900 font-semibold'
-                }`}
-              >
-                {formatCoord(cameraCoords.lat, t.coordN, t.coordS)}, {formatCoord(cameraCoords.lng, t.coordE, t.coordW)}
-              </div>
+              {localTime ? (
+                <div
+                  className={`flex items-center justify-end gap-1.5 text-[11px] font-mono leading-none mt-1 ${
+                    isDark ? 'text-white' : 'text-slate-900 font-semibold'
+                  }`}
+                >
+                  <span className="text-[10px] font-sans opacity-75 truncate max-w-[120px]">
+                    {selectedCity?.cityName || selectedStation?.state || selectedStation?.country}
+                  </span>
+                  <span>·</span>
+                  <span
+                    className={`font-bold ${
+                      localTime.periodKey === 'night'
+                        ? isDark ? 'text-indigo-300' : 'text-indigo-600'
+                        : localTime.periodKey === 'morning'
+                        ? isDark ? 'text-amber-300' : 'text-amber-600'
+                        : localTime.periodKey === 'day'
+                        ? isDark ? 'text-sky-300' : 'text-sky-600'
+                        : isDark ? 'text-orange-300' : 'text-orange-600'
+                    }`}
+                  >
+                    {localTime.formatted}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  className={`text-[11px] font-mono leading-none mt-1 ${
+                    isDark ? 'text-white' : 'text-slate-900 font-semibold'
+                  }`}
+                >
+                  {formatCoord(cameraCoords.lat, t.coordN, t.coordS)}, {formatCoord(cameraCoords.lng, t.coordE, t.coordW)}
+                </div>
+              )}
             </div>
           </div>
         </div>

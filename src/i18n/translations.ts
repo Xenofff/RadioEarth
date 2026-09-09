@@ -73,6 +73,13 @@ export interface Translations {
   searchNoResults: (query: string) => string;
   quickGenres: string;
   searchHint: string;
+
+  // Local Time & Atmospheric Periods
+  localTime: string;
+  timeNight: string;
+  timeMorning: string;
+  timeDay: string;
+  timeEvening: string;
 }
 
 function pluralizeRu(n: number, one: string, few: string, many: string): string {
@@ -156,6 +163,13 @@ export const translations: Record<Language, Translations> = {
     searchNoResults: (query: string) => `Ничего не найдено по запросу «${query}»`,
     quickGenres: 'Популярные жанры:',
     searchHint: 'Нажмите Enter для перехода или Esc для закрытия',
+
+    // Local Time & Atmospheric Periods
+    localTime: 'Местное время',
+    timeNight: 'Ночь',
+    timeMorning: 'Утро',
+    timeDay: 'День',
+    timeEvening: 'Вечер',
   },
   en: {
     brandTitle: 'RADIO EARTH',
@@ -228,6 +242,13 @@ export const translations: Record<Language, Translations> = {
     searchNoResults: (query: string) => `No results found matching "${query}"`,
     quickGenres: 'Popular genres:',
     searchHint: 'Press Enter to select or Esc to close',
+
+    // Local Time & Atmospheric Periods
+    localTime: 'Local time',
+    timeNight: 'Night',
+    timeMorning: 'Morning',
+    timeDay: 'Afternoon',
+    timeEvening: 'Evening',
   },
 };
 

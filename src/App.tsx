@@ -303,6 +303,8 @@ export function App() {
         selectedCity={selectedCity}
         onSelectCity={handleSelectCity}
         onCameraChange={setCameraCoords}
+        volume={volume}
+        isMuted={isMuted}
       />
 
       {/* Компактный минималистичный HUD оверлей с прицелом, поиском и избранным */}
@@ -315,6 +317,8 @@ export function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenFavorites={() => setIsFavoritesDrawerOpen(true)}
         favoritesCount={favorites.length}
+        selectedCity={selectedCity}
+        selectedStation={currentStation}
       />
 
       {/* Выдвижная левая панель со станциями города */}
@@ -357,6 +361,7 @@ export function App() {
         volume={volume}
         isMuted={isMuted}
         errorMessage={errorMessage}
+        cityName={selectedCity?.cityName}
         stationsInCityCount={selectedCity?.stations.length}
         onTogglePlay={togglePlay}
         onSetVolume={setVolume}
