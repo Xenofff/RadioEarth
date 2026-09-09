@@ -98,7 +98,7 @@ export function buildTerminatorGeoJson(date: Date = new Date()): GeoJSON.Feature
   const tanDec = Math.tan((subsolar.lat * Math.PI) / 180);
 
   const points: [number, number][] = [];
-  const step = 2; // Every 2 degrees of longitude
+  const step = 1; // High resolution (1 degree step) for smooth curvature on 3D globe
 
   for (let lon = -180; lon <= 180; lon += step) {
     const deltaLonRad = ((lon - subsolar.lng) * Math.PI) / 180;

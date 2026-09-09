@@ -330,21 +330,63 @@ export const MapGlobeView = memo(
             filter: ['==', '$type', 'Polygon'],
             paint: {
               'fill-color': currentTheme === 'dark' ? '#010307' : '#0B132B',
-              'fill-opacity': currentTheme === 'dark' ? 0.4 : 0.25,
+              'fill-opacity': currentTheme === 'dark' ? 0.38 : 0.22,
             },
           });
 
-          // 2. Glowing sunset/sunrise twilight line
+          // 2. Broad Penumbra Shadow Line: soft feathering of the shadow boundary into twilight
           map.addLayer({
-            id: 'terminator-twilight-line',
+            id: 'terminator-penumbra-broad',
+            type: 'line',
+            source: 'terminator-source',
+            filter: ['==', '$type', 'LineString'],
+            paint: {
+              'line-color': currentTheme === 'dark' ? '#010307' : '#0B132B',
+              'line-width': 64,
+              'line-blur': 48,
+              'line-opacity': currentTheme === 'dark' ? 0.55 : 0.38,
+            },
+          });
+
+          // 3. Intermediate Penumbra Line: gentle transition into the night side
+          map.addLayer({
+            id: 'terminator-penumbra-mid',
+            type: 'line',
+            source: 'terminator-source',
+            filter: ['==', '$type', 'LineString'],
+            paint: {
+              'line-color': currentTheme === 'dark' ? '#020409' : '#0E1738',
+              'line-width': 36,
+              'line-blur': 26,
+              'line-opacity': currentTheme === 'dark' ? 0.42 : 0.28,
+            },
+          });
+
+          // 4. Wide softly blurred sunset glow (line-blur: 24, line-width: 32, line-opacity: 0.35)
+          map.addLayer({
+            id: 'terminator-sunset-glow',
             type: 'line',
             source: 'terminator-source',
             filter: ['==', '$type', 'LineString'],
             paint: {
               'line-color': '#F59E0B',
-              'line-width': 2.2,
-              'line-blur': 3.5,
-              'line-opacity': currentTheme === 'dark' ? 0.65 : 0.45,
+              'line-width': 32,
+              'line-blur': 24,
+              'line-opacity': 0.35,
+            },
+          });
+
+          // 5. Soft warm amber-orange sunset core halo
+          map.addLayer({
+            id: 'terminator-sunset-core',
+            type: 'line',
+            source: 'terminator-source',
+            filter: ['==', '$type', 'LineString'],
+            paint: {
+              'line-color': '#FB923C',
+              'line-width': 16,
+              'line-blur': 12,
+              'line-opacity': 0.28,
             },
           });
         } else {
