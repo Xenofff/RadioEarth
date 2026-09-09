@@ -46,38 +46,40 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-50 w-full sm:w-96 backdrop-blur-xl border-r flex flex-col transition-transform duration-300 ease-in-out shadow-2xl ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
+      className={`fixed top-14 sm:top-16 left-3 sm:left-4 bottom-20 md:bottom-[76px] z-30 w-[calc(100vw-24px)] sm:w-[310px] md:w-[320px] max-w-[340px] backdrop-blur-xl border rounded-2xl flex flex-col transition-all duration-300 ease-in-out shadow-2xl overflow-hidden ${
+        isOpen
+          ? 'translate-x-0 opacity-100 pointer-events-auto'
+          : '-translate-x-full sm:-translate-x-8 opacity-0 pointer-events-none'
       } ${
         isDark
-          ? 'bg-[#0B0E14]/95 border-[#16C683]/20 text-white'
+          ? 'bg-[#0B0E14]/95 border-[#16C683]/25 text-white shadow-black/60'
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/40'
       }`}
     >
       {/* Header */}
       <div
-        className={`p-5 border-b flex items-start justify-between gap-3 transition-colors ${
-          isDark ? 'border-white/5 bg-[#12161F]/40' : 'border-slate-200 bg-slate-50/70'
+        className={`p-3.5 sm:p-4 border-b flex items-start justify-between gap-2.5 transition-colors ${
+          isDark ? 'border-white/5 bg-[#12161F]/60' : 'border-slate-200 bg-slate-50/80'
         }`}
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <div
-            className={`flex items-center gap-1.5 text-xs font-mono ${
+            className={`flex items-center gap-1.5 text-[10px] font-mono leading-none ${
               isDark ? 'text-[#16C683]' : 'text-emerald-700'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="uppercase tracking-wider">{city.country}</span>
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            <span className="uppercase tracking-wider truncate">{city.country}</span>
           </div>
           <h2
-            className={`text-xl font-bold mt-1 ${
+            className={`text-base font-bold mt-1 truncate ${
               isDark ? 'text-white' : 'text-slate-900'
             }`}
           >
             {city.cityName}
           </h2>
           <p
-            className={`text-xs mt-0.5 ${
+            className={`text-[11px] mt-0.5 ${
               isDark ? 'text-[#8B949E]' : 'text-slate-500'
             }`}
           >
@@ -87,26 +89,26 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
 
         <button
           onClick={onClose}
-          className={`p-2 rounded-lg border transition-colors ${
+          className={`p-1.5 rounded-lg border transition-colors flex-shrink-0 ${
             isDark
               ? 'bg-[#12161F] text-[#8B949E] hover:text-white hover:bg-[#16C683]/20 border-white/10'
               : 'bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 border-slate-200'
           }`}
           title={t.closeDrawerTitle}
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Search Bar */}
       <div
-        className={`p-4 border-b ${
+        className={`p-2.5 border-b ${
           isDark ? 'border-white/5' : 'border-slate-200'
         }`}
       >
         <div className="relative">
           <Search
-            className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${
+            className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 ${
               isDark ? 'text-[#8B949E]' : 'text-slate-400'
             }`}
           />
@@ -115,7 +117,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
             placeholder={t.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-9 pr-4 py-2 border rounded-lg text-sm outline-none transition-colors ${
+            className={`w-full pl-8 pr-4 py-1.5 border rounded-lg text-xs outline-none transition-colors ${
               isDark
                 ? 'bg-[#12161F] border-white/10 focus:border-[#16C683] text-white placeholder-[#8B949E]'
                 : 'bg-slate-100 border-slate-200 focus:border-emerald-600 text-slate-900 placeholder-slate-400'
@@ -124,7 +126,7 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs ${
+              className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] ${
                 isDark ? 'text-[#8B949E] hover:text-white' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -136,13 +138,13 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
 
       {/* Stations List */}
       <div
-        className={`flex-1 overflow-y-auto divide-y custom-scrollbar pb-24 ${
+        className={`flex-1 overflow-y-auto divide-y custom-scrollbar ${
           isDark ? 'divide-white/5' : 'divide-slate-200/60'
         }`}
       >
         {filteredStations.length === 0 ? (
           <div
-            className={`p-8 text-center text-sm ${
+            className={`p-6 text-center text-xs ${
               isDark ? 'text-[#8B949E]' : 'text-slate-500'
             }`}
           >
@@ -159,50 +161,50 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
               <div
                 key={station.id}
                 onClick={() => onSelectStation(station)}
-                className={`p-4 flex items-center gap-3 cursor-pointer transition-all duration-150 ${
+                className={`p-2.5 px-3 flex items-center gap-2.5 cursor-pointer transition-all duration-150 ${
                   isCurrent
                     ? isDark
-                      ? 'bg-[#16C683]/10 border-l-4 border-l-[#16C683]'
-                      : 'bg-emerald-50 border-l-4 border-l-emerald-600'
+                      ? 'bg-[#16C683]/10 border-l-[3px] border-l-[#16C683]'
+                      : 'bg-emerald-50 border-l-[3px] border-l-emerald-600'
                     : isDark
-                    ? 'hover:bg-[#12161F]/80 border-l-4 border-l-transparent'
-                    : 'hover:bg-slate-50 border-l-4 border-l-transparent'
+                    ? 'hover:bg-[#12161F]/80 border-l-[3px] border-l-transparent'
+                    : 'hover:bg-slate-50 border-l-[3px] border-l-transparent'
                 }`}
               >
                 {/* Station Icon or Playing state */}
                 <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all ${
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border transition-all ${
                     isCurrent
                       ? isDark
-                        ? 'bg-[#16C683] text-[#0B0E14] border-[#16C683] shadow-md shadow-[#16C683]/20'
-                        : 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20'
+                        ? 'bg-[#16C683] text-[#0B0E14] border-[#16C683] shadow-sm shadow-[#16C683]/20'
+                        : 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
                       : isDark
-                      ? 'bg-[#12161F] text-[#8B949E] border-white/10 group-hover:border-[#16C683]/50'
-                      : 'bg-slate-100 text-slate-500 border-slate-200 group-hover:border-emerald-400'
+                      ? 'bg-[#12161F] text-[#8B949E] border-white/10'
+                      : 'bg-slate-100 text-slate-500 border-slate-200'
                   }`}
                 >
                   {isLoading ? (
                     <span
-                      className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${
+                      className={`w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin ${
                         isCurrent && !isDark ? 'border-white' : 'border-[#0B0E14]'
                       }`}
                     ></span>
                   ) : isPlaying ? (
-                    <Volume2 className="w-5 h-5 animate-pulse" />
+                    <Volume2 className="w-4 h-4 animate-pulse" />
                   ) : (
-                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                   )}
                 </div>
 
                 {/* Station Details */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-1.5">
                     <h3
-                      className={`text-sm font-medium truncate ${
+                      className={`text-xs font-semibold truncate ${
                         isCurrent
                           ? isDark
                             ? 'text-[#16C683]'
-                            : 'text-emerald-700 font-semibold'
+                            : 'text-emerald-700 font-bold'
                           : isDark
                           ? 'text-white'
                           : 'text-slate-900'
@@ -216,11 +218,11 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
                         e.stopPropagation();
                         onToggleFavorite(station);
                       }}
-                      className={`p-1.5 rounded-lg transition-all active:scale-125 flex-shrink-0 ${
+                      className={`p-1 rounded transition-all active:scale-125 flex-shrink-0 ${
                         isFav
                           ? 'text-rose-500 hover:text-rose-400'
                           : isDark
-                          ? 'text-[#8B949E]/50 hover:text-rose-400 hover:bg-white/5'
+                          ? 'text-[#8B949E]/40 hover:text-rose-400 hover:bg-white/5'
                           : 'text-slate-300 hover:text-rose-500 hover:bg-slate-100'
                       }`}
                       title={isFav ? t.removeFromFavorites : t.addToFavorites}
@@ -233,18 +235,18 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-0.5">
                     <span
-                      className={`text-[10px] font-mono uppercase ${
+                      className={`text-[9px] font-mono uppercase ${
                         isDark ? 'text-[#8B949E]' : 'text-slate-500'
                       }`}
                     >
-                      {station.codec || 'MP3'} {station.bitrate ? `${station.bitrate} kbps` : ''}
+                      {station.codec || 'MP3'} {station.bitrate ? `${station.bitrate}k` : ''}
                     </span>
 
                     {station.votes > 0 && (
                       <span
-                        className={`text-[10px] font-mono ${
+                        className={`text-[9px] font-mono ${
                           isDark ? 'text-[#8B949E]' : 'text-slate-500'
                         }`}
                       >
@@ -254,22 +256,22 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
                   </div>
 
                   {station.tags.length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {station.tags.slice(0, 3).map((tag, i) => (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {station.tags.slice(0, 2).map((tag, i) => (
                         <span
                           key={i}
-                          className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded ${
+                          className={`inline-flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.2 rounded font-mono truncate max-w-[90px] ${
                             isDark
                               ? 'bg-white/5 text-[#8B949E]'
                               : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           <Tag
-                            className={`w-2.5 h-2.5 ${
+                            className={`w-2 h-2 ${
                               isDark ? 'text-[#16C683]/60' : 'text-emerald-600'
                             }`}
                           />
-                          {tag}
+                          <span className="truncate">{tag}</span>
                         </span>
                       ))}
                     </div>
@@ -283,13 +285,13 @@ export const CityStationsDrawer: React.FC<CityStationsDrawerProps> = ({
 
       {/* Drawer Footer Info */}
       <div
-        className={`p-3 border-t text-center text-[11px] font-mono transition-colors ${
+        className={`p-2 border-t text-center text-[10px] font-mono transition-colors ${
           isDark
             ? 'border-white/5 bg-[#0B0E14] text-[#8B949E]'
             : 'border-slate-200 bg-slate-50 text-slate-500'
         }`}
       >
-        GEO: {city.lat.toFixed(4)}, {city.lng.toFixed(4)}
+        GEO: {city.lat.toFixed(2)}°, {city.lng.toFixed(2)}°
       </div>
     </aside>
   );

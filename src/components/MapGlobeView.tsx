@@ -94,19 +94,20 @@ export const MapGlobeView = memo(
       },
     }));
 
-    // Convert CityGroup[] into GeoJSON FeatureCollection
+    // Convert CityGroup[] into GeoJSON FeatureCollection with unique numeric IDs for MapLibre feature-state
     const buildGeoJson = useCallback((cityList: CityGroup[]): GeoJSON.FeatureCollection<GeoJSON.Point> => {
       return {
         type: 'FeatureCollection',
-        features: cityList.map((city) => ({
+        features: cityList.map((city, index) => ({
           type: 'Feature',
-          id: city.id,
+          id: index + 1, // MapLibre setFeatureState requires numeric integer IDs
           geometry: {
             type: 'Point',
             coordinates: [city.lng, city.lat],
           },
           properties: {
             id: city.id,
+            numericId: index + 1,
             cityName: city.cityName,
             country: city.country,
             countryCode: city.countryCode,
