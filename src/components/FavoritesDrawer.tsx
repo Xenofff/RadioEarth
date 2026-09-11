@@ -42,7 +42,7 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
 
   return (
     <aside
-      className={`fixed top-14 sm:top-16 left-3 sm:left-4 bottom-20 md:bottom-[76px] z-30 w-[calc(100vw-24px)] sm:w-[310px] md:w-[320px] max-w-[340px] backdrop-blur-xl border rounded-2xl flex flex-col transition-all duration-300 ease-in-out shadow-2xl overflow-hidden ${
+      className={`fixed left-3 sm:left-4 z-30 w-[calc(100vw-24px)] sm:w-[310px] md:w-[320px] max-w-[340px] backdrop-blur-xl border rounded-2xl flex flex-col transition-all duration-300 ease-in-out shadow-2xl overflow-hidden ${
         isOpen
           ? 'translate-x-0 opacity-100 pointer-events-auto'
           : '-translate-x-full sm:-translate-x-8 opacity-0 pointer-events-none'
@@ -51,6 +51,10 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
           ? 'bg-[#0B0E14]/95 border-[#16C683]/25 text-white shadow-black/60'
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/40'
       }`}
+      style={{
+        top: 'max(64px, calc(env(safe-area-inset-top, 16px) + 50px))',
+        bottom: 'max(84px, calc(env(safe-area-inset-bottom, 16px) + 72px))',
+      }}
     >
       {/* Drawer Header */}
       <div
