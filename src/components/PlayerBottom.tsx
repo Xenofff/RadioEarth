@@ -145,11 +145,12 @@ export const PlayerBottom: React.FC<PlayerBottomProps> = ({
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl border-t px-3 py-2.5 md:px-6 md:py-3 shadow-2xl transition-colors ${
+      className={`fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl border-t px-3 pt-2.5 md:px-6 md:pt-3 shadow-2xl transition-colors ${
         isDark
           ? 'bg-[#0B0E14]/95 border-[#16C683]/25 text-white'
           : 'bg-white/95 border-slate-200/80 text-slate-900 shadow-slate-300/40'
       }`}
+      style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
     >
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
         {/* Module 1: Station Information */}

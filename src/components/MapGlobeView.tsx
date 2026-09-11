@@ -12,6 +12,28 @@ import { radioStaticEngine } from '../utils/radioStatic';
 const DARK_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const LIGHT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
+const createFallbackStyle = (theme: 'dark' | 'light'): any => ({
+  version: 8,
+  name: 'RadioEarth Offline Style',
+  sources: {},
+  layers: [
+    {
+      id: 'background',
+      type: 'background',
+      paint: {
+        'background-color': theme === 'dark' ? '#0B0E14' : '#E6ECF2',
+      },
+    },
+    {
+      id: 'water',
+      type: 'background',
+      paint: {
+        'background-color': theme === 'dark' ? '#0B0E14' : '#D0DFEB',
+      },
+    },
+  ],
+});
+
 export interface MapGlobeViewHandle {
   flyTo: (lat: number, lng: number, zoom?: number) => void;
 }
@@ -603,14 +625,51 @@ export const MapGlobeView = memo(
       map.on('move', handleCameraUpdate);
 
       // Once style loads, activate Globe projection and configure layers
+      let isReadyTriggered = false;
       const onStyleReady = () => {
+        if (isReadyTriggered) return;
+        isReadyTriggered = true;
         setupGlobeLayers(map, themeRef.current);
         handleCameraUpdate();
       };
 
-      map.on('style.load', onStyleReady);
-      map.on('load', onStyleReady);
+      const fallbackToLocalStyle = () => {
+        if (isStyleLoadedRef.current || isReadyTriggered) return;
+        console.warn('[MapGlobeView] Remote Carto style failed or timed out, loading local fallback style');
+        try {
+          map.setStyle(createFallbackStyle(themeRef.current));
+        } catch (err) {
+          console.error('[MapGlobeView] Error setting fallback style:', err);
+        }
+      };
+
+      // Listen for network/style errors (e.g. offline, DNS failure)
+      map.on('error', (e) => {
+        if (!isStyleLoadedRef.current) {
+          const errMsg = e.error?.message || '';
+          if (errMsg.includes('Failed to fetch') || errMsg.includes('style.json') || errMsg.includes('AJAXError')) {
+            fallbackToLocalStyle();
+          }
+        }
+      });
+
+      // Timeout fallback: if remote style doesn't load within 2s, switch to offline style immediately
+      const styleTimeout = setTimeout(() => {
+        if (!isStyleLoadedRef.current) {
+          fallbackToLocalStyle();
+        }
+      }, 2000);
+
+      map.on('style.load', () => {
+        clearTimeout(styleTimeout);
+        onStyleReady();
+      });
+      map.on('load', () => {
+        clearTimeout(styleTimeout);
+        onStyleReady();
+      });
       if (map.isStyleLoaded()) {
+        clearTimeout(styleTimeout);
         onStyleReady();
       }
 
@@ -850,6 +909,7 @@ export const MapGlobeView = memo(
       });
 
       return () => {
+        clearTimeout(styleTimeout);
         cancelScan();
         if (telemetryRaf !== null) {
           cancelAnimationFrame(telemetryRaf);
@@ -910,7 +970,11 @@ export const MapGlobeView = memo(
       activeStyleThemeRef.current = theme;
 
       isStyleLoadedRef.current = false;
-      map.setStyle(theme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE);
+      try {
+        map.setStyle(theme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE);
+      } catch {
+        map.setStyle(createFallbackStyle(theme));
+      }
     }, [theme]);
 
     return (

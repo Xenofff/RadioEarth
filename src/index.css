@@ -17,6 +17,7 @@
     overflow: hidden;
     height: 100%;
     width: 100%;
+    overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

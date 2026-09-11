@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { CityGroup, Station } from '../types/radio';
+import { nativeBackgroundAudio } from '../services/nativeBackgroundAudio';
 
 interface UseMediaSessionProps {
   station: Station | null;
@@ -61,8 +62,17 @@ export function useMediaSession({
     }
   }, [station, city]);
 
-  // Update playback state
+  // Update playback state and native foreground service
   useEffect(() => {
+    if (station && isPlaying) {
+      const artist = city?.cityName
+        ? `${city.cityName}, ${station.country}`
+        : `${station.state ? `${station.state}, ` : ''}${station.country}`;
+      nativeBackgroundAudio.start(station.name, artist);
+    } else {
+      nativeBackgroundAudio.stop();
+    }
+
     if (!('mediaSession' in navigator)) return;
 
     if (!station) {
@@ -70,7 +80,7 @@ export function useMediaSession({
     } else {
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
     }
-  }, [station, isPlaying]);
+  }, [station, city, isPlaying]);
 
   // Register hardware & headphone action handlers
   useEffect(() => {
